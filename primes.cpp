@@ -1,4 +1,6 @@
 #include "CS207/Util.hpp"
+#include "math.h"
+#include <list>
 
 /** Return true iff @a n is prime.
  * @pre @a n >= 0
@@ -6,10 +8,21 @@
 bool is_prime(int n)
 {
   assert(n >= 0);
-  for (int i = n-1; i > 0; --i)
-    if (n % i == 0)
-      return true;
-  return false;
+
+  static std::list<int> list_of_primes;
+
+  double square_root = sqrt(n);
+  
+
+
+  for (std::list<int>::iterator num = list_of_primes.begin(); *num <= square_root &&  num!=list_of_primes.end(); ++num){
+    if (n % *num == 0)
+      return false;
+  }
+
+
+  list_of_primes.push_back(n);
+  return true;
 }
 
 int main()
@@ -29,13 +42,16 @@ int main()
 
     CS207::Clock timer;
 
+
     // Loop and count primes from 2 up to n
     int num_primes = 0;
-    for (int i = 2; i <= n; ++i) {
-      if (is_prime(i)) {
-        ++num_primes;
-        if (print_primes)
+    if (print_primes) {
+      for (int i = 2; i <= n; ++i) {
+        if (is_prime(i)) {
+          // add i to stack or some data structure
+          ++num_primes;
           std::cout << i << std::endl;
+       }
       }
     }
 
