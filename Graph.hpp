@@ -37,6 +37,8 @@ class Graph {
   /** Type of this graph. */
   typedef Graph graph_type;
 
+
+
   /** Predeclaration of Node type. */
   class Node;
   /** Synonym for Node (following STL conventions). */
@@ -57,8 +59,8 @@ class Graph {
   ////////////////////////////////
 
   /** Construct an empty graph. */
-  Graph() {
-    // HW0: YOUR CODE HERE
+  Graph() 
+    : size_(0), next_uid_(0), nodes_() {
   }
   /** Default destructor */
   ~Graph() = default;
@@ -73,7 +75,7 @@ class Graph {
    */
   size_type size() const {
     // HW0: YOUR CODE HERE
-    return 0;
+    return size_;
   }
 
   /** Remove all nodes and edges from this graph.
@@ -112,19 +114,17 @@ class Graph {
      * @endcode
      */
     Node() {
-      // HW0: YOUR CODE HERE
     }
 
     /** Return this node's position. */
     const Point& position() const {
-      // HW0: YOUR CODE HERE
-      return Point();
+      return graph_->nodes_[uid_].point;
     }
 
     /** Return this node's index, a number in the range [0, graph_size). */
     size_type index() const {
-      // HW0: YOUR CODE HERE
-      return size_type(-1);
+      
+      return 2;
     }
 
     /** Test whether this node and @a x are equal.
@@ -146,14 +146,22 @@ class Graph {
      * and y, exactly one of x == y, x < y, and y < x is true.
      */
     bool operator<(const Node& x) const {
-      // HW0: YOUR CODE HERE
+     
       (void) x;           // Quiet compiler warning
-      return false;
+      return this->index() < x.index();
     }
 
    private:
+
+    
+    Node (const Graph* graph, size_type uid) 
+      : graph_(const_cast<Graph*>(graph)), uid_(uid) {
+    }
     // Allow Graph to access Node's private member data and functions.
     friend class Graph;
+
+    Graph* graph_;
+    size_type uid_;
     // HW0: YOUR CODE HERE
     // Use this space to declare private data members and methods for Node
     // that will not be visible to users, but may be useful within Graph.
@@ -200,6 +208,7 @@ class Graph {
    * Edges are order-insensitive pairs of nodes. Two Edges with the same nodes
    * are considered equal if they connect the same nodes, in either order.
    */
+
   class Edge {
    public:
     /** Construct an invalid Edge. */
@@ -290,7 +299,17 @@ class Graph {
     return Edge();        // Invalid Edge
   }
 
+
  private:
+
+  struct internal_node {
+    Point point;
+    size_type index;
+  };
+
+  size_type size_;
+  size_type next_uid_;
+  std::map<size_type, internal_node> nodes_;
 
   // HW0: YOUR CODE HERE
   // Use this space for your Graph class's internals:
