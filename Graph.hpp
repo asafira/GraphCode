@@ -60,7 +60,7 @@ class Graph {
 
   /** Construct an empty graph. */
   Graph() 
-    : size_(0), next_uid_(0), nodes_() {
+    : size_(0), next_index_(0), nodes_() {
   }
   /** Default destructor */
   ~Graph() = default;
@@ -118,13 +118,13 @@ class Graph {
 
     /** Return this node's position. */
     const Point& position() const {
-      return graph_->nodes_[uid_].point;
+      return graph_->nodes_[index_];
     }
 
     /** Return this node's index, a number in the range [0, graph_size). */
     size_type index() const {
       
-      return 2;
+      return index_;
     }
 
     /** Test whether this node and @a x are equal.
@@ -132,9 +132,9 @@ class Graph {
      * Equal nodes have the same graph and the same index.
      */
     bool operator==(const Node& x) const {
-      // HW0: YOUR CODE HERE
+      
       (void) x;          // Quiet compiler warning
-      return false;
+      return (this->graph_ == x.graph_) && (this->index() == x.index());
     }
 
     /** Test whether this node is less than @a x in the global order.
@@ -154,14 +154,14 @@ class Graph {
    private:
 
     
-    Node (const Graph* graph, size_type uid) 
-      : graph_(const_cast<Graph*>(graph)), uid_(uid) {
+    Node (const Graph* graph, size_type index) 
+      : graph_(const_cast<Graph*>(graph)), index_(index) {
     }
     // Allow Graph to access Node's private member data and functions.
     friend class Graph;
 
     Graph* graph_;
-    size_type uid_;
+    size_type index_;
     // HW0: YOUR CODE HERE
     // Use this space to declare private data members and methods for Node
     // that will not be visible to users, but may be useful within Graph.
@@ -182,8 +182,11 @@ class Graph {
    */
   Node add_node(const Point& position) {
     // HW0: YOUR CODE HERE
+    nodes_[next_index_] = position;
+    
+    next_index_++;
     (void) position;      // Quiet compiler warning
-    return Node();        // Invalid node
+    return Node(this, next_index_ - 1);        // Invalid node
   }
 
   /** Return the node with index @a i.
@@ -193,9 +196,11 @@ class Graph {
    * Complexity: O(1).
    */
   Node node(size_type i) const {
+
+    assert(i < size());
     // HW0: YOUR CODE HERE
     (void) i;             // Quiet compiler warning
-    return Node();        // Invalid node
+    return Node(this, i);        // Invalid node
   }
 
   /////////////////
@@ -302,14 +307,10 @@ class Graph {
 
  private:
 
-  struct internal_node {
-    Point point;
-    size_type index;
-  };
 
   size_type size_;
-  size_type next_uid_;
-  std::map<size_type, internal_node> nodes_;
+  size_type next_index_;
+  std::map<size_type, Point> nodes_;
 
   // HW0: YOUR CODE HERE
   // Use this space for your Graph class's internals:
