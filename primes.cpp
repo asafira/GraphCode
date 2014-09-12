@@ -2,25 +2,31 @@
 #include "math.h"
 #include <list>
 
-/** Return true iff @a n is prime.
- * @pre @a n >= 0
+/** @brief Return true iff @a n is prime.
+ *  @pre @a n >= 0
+ *  @post true if there does not exist 2 <= x <= n s.t. x | n for int x, 
+ *  false otherwise.
  */
 bool is_prime(int n)
 {
-  assert(n >= 0);
+  assert(n >= 0); // Check for a non-negative integer
 
+  // Keep  persistent prime list
   static std::list<int> list_of_primes;
 
-  double square_root = sqrt(n);
-  
+  // Calculute square_root for better look bounds
+  int square_root = (int) floor(sqrt(n)); 
 
-
-  for (std::list<int>::iterator num = list_of_primes.begin(); *num <= square_root &&  num!=list_of_primes.end(); ++num){
+  // Look through list of primes until it ends or we reach the sq. root
+  for (std::list<int>::iterator num = list_of_primes.begin(); *num <= square_root &&  num != list_of_primes.end(); ++num){
+    
+    // Return false if we find a factor
     if (n % *num == 0)
       return false;
   }
 
 
+  // Add to prime list if we cannot find a factor, return true
   list_of_primes.push_back(n);
   return true;
 }
