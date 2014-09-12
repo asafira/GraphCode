@@ -86,9 +86,9 @@ class Graph {
   void clear() {
     num_edges_ = 0;
     size_ = 0;
-    nodes_.erase(nodes_.begin(), nodes_.end());
-    edges_.erase(edges_.begin(), edges_.end());
-    index_lookup_.erase(index_lookup_.begin(), index_lookup_.end());
+    nodes_.clear();
+    edges_.clear();
+    index_lookup_.clear();
   }
 
   /////////////////
