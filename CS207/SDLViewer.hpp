@@ -189,12 +189,11 @@ class SDLViewer {
       // Clear the data
       coords_.clear();
       edges_.clear();
-
       // Insert the nodes
       size_type num_nodes = g.num_nodes();
-      for (size_type i = 0; i < num_nodes; ++i)
+      for (size_type i = 0; i < num_nodes; ++i) {
         coords_.push_back(g.node(i).position());
-
+      }
       // Set all nodes to be white
       colors_ = std::vector<Color>(coords_.size(), Color(1,1,1));
     }
@@ -236,7 +235,6 @@ class SDLViewer {
         nodemap[n.index()] = coords_.size();
         coords_.push_back(n.position());
       }
-
       // Set all nodes to be white
       colors_ = std::vector<Color>(coords_.size(), Color(1,1,1));
 

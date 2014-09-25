@@ -106,7 +106,6 @@ class Graph {
     size_ = 0;
     nodes_.clear();
     edges_.clear();
-    index_lookup_.clear();
   }
 
   /////////////////
@@ -129,7 +128,7 @@ class Graph {
      *  @post Return 3d Point result stored in node
      */
     const Point& position() const {
-      return graph_->nodes_[index_].node_point;
+      return graph_->nodes_[index_].point;
     }
 
     /** Return this node's index, a number in the range [0, graph_size). */
@@ -210,8 +209,10 @@ class Graph {
    * Complexity: O(1) amortized operations.
    */
   Node add_node(const Point& position, const node_value_type& = node_value_type()) {
-
-    nodes_[size_] = {position, node_value_type()};
+ 
+    std::vector<size_type> adj_list;
+    
+    nodes_.push_back({position, node_value_type(), adj_list});
     
     size_++;
     (void) position;      // Quiet compiler warning
@@ -238,7 +239,6 @@ class Graph {
    */
   Node node(size_type i) const {
     assert(i < size());
-    
     (void) i;             // Quiet compiler warning
     return Node(this, i);        // Invalid node
   }
@@ -338,35 +338,26 @@ class Graph {
    *  Complexity: No more than O(num_nodes() + num_edges()), hopefully less
    */
   Edge add_edge(const Node& a, const Node& b) {
+
+    assert (a.index() < size_ && b.index() < size_);
+    assert (a.index() != b.index());
+
+    edge_type_ input_edge;
+
+    if (a < b)
+      input_edge = {a.index(), b.index()};
     
-    // Create internal edge_nodes struct
-    edge_nodes_* edge_ab = new edge_nodes_();
-    edge_ab->index_1 = a.index();
-    edge_ab->index_2 = b.index();
+    else
+      input_edge = {b.index(), a.index()};
 
-    // Check if edge already exists
-    if (index_lookup_.find(*edge_ab) != index_lookup_.end())
-      return Edge(this, index_lookup_[*edge_ab]);
+    size_type uid = insert_into_vector(edges_, input_edge);
+    insert_into_vector(nodes_[a.index()].adj_list, b.index());
+    insert_into_vector(nodes_[b.index()].adj_list, a.index());
 
-    // Create edge with reversed nodes
-    edge_nodes_* edge_ba = new edge_nodes_();
-    edge_ba->index_1 = b.index();
-    edge_ba->index_2 = a.index();
-
-    // Check if reverse edge exists
-    if (index_lookup_.find(*edge_ba) != index_lookup_.end()) {
-      
-      // Substitute reversed edge into graph, return it
-      edges_[index_lookup_[*edge_ba]] = *edge_ab;
-      return Edge(this, index_lookup_[*edge_ba]);
-    }
-   
-    // Create new edge, incrementin num_edges and next_edge_index appropriately
-    num_edges_++;
-    edges_[num_edges_ - 1] = *edge_ab;
-   
-    (void) a, (void) b;   // Quiet compiler warning
-    return Edge(this, num_edges_ - 1);        // Invalid Edge
+    num_edges_ = edges_.size();
+ 
+    (void) a, (void) b;
+    return Edge(this, uid);
   }
 
   /** Test whether two nodes are connected by an edge.
@@ -436,7 +427,7 @@ class Graph {
           return nullptr;
 
        else {
-         *p_ = node(p_->index()+1);
+         *p_ = Node(p_->index()+1);
          return *this;
        }
      }
@@ -447,6 +438,8 @@ class Graph {
 
    private:
     friend class Graph;
+
+    Graph* graph_;
     // HW1 #2: YOUR CODE HERE
   };
 
@@ -526,12 +519,13 @@ class Graph {
  private:
 
   // Use internal struct of two node indices as edge identifier
-  struct edge_nodes_ {
+  struct edge_type_ {
     size_type index_1;
     size_type index_2;
 
-    // Define < for stl::map
-    bool operator<(edge_nodes_ other) const {
+
+    // Define < for std::map
+    bool operator<(edge_type_ other) const {
 
         if ( index_1 != other.index_1)
           return index_1 < other.index_1; 
@@ -541,22 +535,30 @@ class Graph {
     }
   };
 
+  
+  // Inspiration for this came from lafstern.org/matt/col1.pdf
+  template <class Vector, class T>
+  size_type insert_into_vector(Vector& v,  const T& elem) {
+
+    typename Vector::iterator high = std::lower_bound(v.begin(), v.end(), elem);
+    if (high == v.end() || elem < *high) {
+      v.insert(high, elem);
+    }
+    return (&(*high) - &v[0]);
+  } 
 
   struct node_type_ {
-    Point node_point;
+    Point point;
     node_value_type value;
+    std::vector<size_type> adj_list;
   };
 
   // Keep track of size and num_edges
   size_type size_;
   size_type num_edges_;
 
-  // Keep maps of identifying size_types to Points and edge_nodes
-  std::map<size_type, node_type_> nodes_;
-  std::map<size_type, edge_nodes_> edges_;
-
-  // Keep revese-lookup map for add_edge speedup
-  std::map<edge_nodes_, size_type> index_lookup_;
+  std::vector<node_type_> nodes_;
+  std::vector<edge_type_> edges_;
 
   // Disable copy and assignment of a Graph
   Graph(const Graph&) = delete;
