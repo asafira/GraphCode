@@ -30,7 +30,7 @@ int main(int argc, char** argv)
   }
 
   // Construct a Graph
-  using GraphType = Graph;
+  using GraphType = Graph<float>;
   GraphType graph;
   std::vector<typename GraphType::node_type> nodes;
 

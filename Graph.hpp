@@ -19,6 +19,7 @@
  * Users can add and retrieve nodes and edges. Edges are unique (there is at
  * most one edge between any pair of distinct nodes).
  */
+template <typename V>
 class Graph {
  private:
 
@@ -34,6 +35,8 @@ class Graph {
   // PUBLIC TYPE DEFINITIONS //
   /////////////////////////////
 
+
+  typedef V node_value_type;
   /** Type of this graph. */
   typedef Graph graph_type;
 
@@ -115,7 +118,7 @@ class Graph {
    *
    * Node objects are used to access information about the Graph's nodes.
    */
-  class Node {
+  class Node : private totally_ordered<Node>{
    public:
     /** @brief Construct an invalid node.
      */
@@ -126,7 +129,7 @@ class Graph {
      *  @post Return 3d Point result stored in node
      */
     const Point& position() const {
-      return graph_->nodes_[index_];
+      return graph_->nodes_[index_].node_point;
     }
 
     /** Return this node's index, a number in the range [0, graph_size). */
@@ -157,6 +160,17 @@ class Graph {
      
       (void) x;           // Quiet compiler warning
       return this->index() < x.index();
+    }
+
+    node_value_type& value() {
+
+      return graph_->nodes_[index_].value;
+    }
+
+    const node_value_type& value() const {
+
+      return graph_->nodes_[index_].value;
+      
     }
 
     // HW1: YOUR CODE HERE
@@ -195,20 +209,15 @@ class Graph {
    *
    * Complexity: O(1) amortized operations.
    */
-  Node add_node(const Point& position) {
+  Node add_node(const Point& position, const node_value_type& = node_value_type()) {
 
-    nodes_[size_] = position;
+    nodes_[size_] = {position, node_value_type()};
     
     size_++;
     (void) position;      // Quiet compiler warning
     return Node(this, size_ - 1);        // Invalid node
   }
 
-<<<<<<< HEAD
-  /** @brief Return the node with index @a i.
-   *  @pre 0 <= @a i < num_nodes()
-   *  @post result_node.index() == i
-=======
   /** Determine if this Node belongs to this Graph
    * @return True if @a n is currently a Node of this Graph
    *
@@ -221,9 +230,9 @@ class Graph {
   }
 
   /** Return the node with index @a i.
-   * @pre 0 <= @a i < num_nodes()
-   * @post result_node.index() == i
->>>>>>> cs207/master
+   * @brief Return the node with index @a i.
+   *  @pre 0 <= @a i < num_nodes()
+   *  @post result_node.index() == i
    *
    *  This class has complexity: O(1).
    */
@@ -378,14 +387,11 @@ class Graph {
    * Complexity: No more than O(num_nodes() + num_edges()), hopefully less
    */
   Edge edge(size_type i) const {
-    // HW0: YOUR CODE HERE
     assert(i < num_edges());
     (void) i;             // Quiet compiler warning
     return Edge(this, i);        // Invalid Edge
   }
 
-<<<<<<< HEAD
-=======
   ///////////////
   // Iterators //
   ///////////////
@@ -415,6 +421,29 @@ class Graph {
     // Node operator*() const
     // NodeIterator& operator++()
     // bool operator==(const NodeIterator&) const
+
+     Node* p_;
+
+     Node operator*() const {
+ 
+        return *p_;
+     }
+
+     node_iterator& operator++() {
+
+       size_type curr_index = p_->index();
+       if (curr_index == graph_->size())
+          return nullptr;
+
+       else {
+         *p_ = node(p_->index()+1);
+         return *this;
+       }
+     }
+     bool operator==(const node_iterator& other_it) const {
+
+       return p_ == other_it.p_;
+     }
 
    private:
     friend class Graph;
@@ -493,7 +522,6 @@ class Graph {
     friend class Graph;
     // HW1 #5: YOUR CODE HERE
   };
->>>>>>> cs207/master
 
  private:
 
@@ -513,12 +541,18 @@ class Graph {
     }
   };
 
+
+  struct node_type_ {
+    Point node_point;
+    node_value_type value;
+  };
+
   // Keep track of size and num_edges
   size_type size_;
   size_type num_edges_;
 
   // Keep maps of identifying size_types to Points and edge_nodes
-  std::map<size_type, Point> nodes_;
+  std::map<size_type, node_type_> nodes_;
   std::map<size_type, edge_nodes_> edges_;
 
   // Keep revese-lookup map for add_edge speedup
