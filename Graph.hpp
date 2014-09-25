@@ -242,6 +242,15 @@ class Graph {
     (void) i;             // Quiet compiler warning
     return Node(this, i);        // Invalid node
   }
+  
+
+  NodeIterator node_begin() const {
+    return NodeIterator(this, 0);
+  }
+ 
+  NodeIterator node_end() const {
+    return NodeIterator(this, size_);
+  }
 
   /////////////////
   // GRAPH EDGES //
@@ -254,7 +263,7 @@ class Graph {
    * are considered equal if they connect the same nodes, in either order.
    */
 
-  class Edge {
+  class Edge : private totally_ordered<Edge>{
    public:
     /** Construct an invalid Edge. */
     Edge() {
@@ -383,6 +392,7 @@ class Graph {
     return Edge(this, i);        // Invalid Edge
   }
 
+  
   ///////////////
   // Iterators //
   ///////////////
@@ -404,7 +414,7 @@ class Graph {
     typedef std::ptrdiff_t difference_type;
 
     /** Construct an invalid NodeIterator. */
-    NodeIterator() {
+    NodeIterator() : p_(nullptr) {
     }
 
     // HW1 #2: YOUR CODE HERE
@@ -416,28 +426,45 @@ class Graph {
      Node* p_;
 
      Node operator*() const {
- 
         return *p_;
      }
 
-     node_iterator& operator++() {
-
-       size_type curr_index = p_->index();
-       if (curr_index == graph_->size())
-          return nullptr;
-
-       else {
-         *p_ = Node(p_->index()+1);
-         return *this;
+     NodeIterator& operator++() {
+       size_type curr_index = p_->index(); 
+       curr_index++;
+       if (curr_index == graph_->size()) {
+         p_ = NULL;
        }
+       else { 
+         *p_ = graph_->node(curr_index);
+       }
+       return *this;
      }
-     bool operator==(const node_iterator& other_it) const {
 
-       return p_ == other_it.p_;
+     bool operator==(const node_iterator& other_iter) const {
+       return p_ == other_iter.p_;
      }
 
+
+     bool operator!=(const node_iterator& other_iter) const {
+       return p_ != other_iter.p_;
+     }
    private:
-    friend class Graph;
+
+    NodeIterator(const Graph* graph, size_type index) 
+      : graph_(const_cast<Graph*>(graph)) {
+      if ( index < graph->size_ ) {
+        Node current_node = graph->node(index);
+        p_ = &current_node;
+      }
+      else {
+        p_ = NULL;
+      }
+    }
+
+
+
+    friend class Graph;   
 
     Graph* graph_;
     // HW1 #2: YOUR CODE HERE

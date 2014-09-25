@@ -58,7 +58,9 @@ int main(int argc, char** argv)
   viewer.launch();
 
   // Set the viewer
-  viewer.draw_graph(graph);
+  // viewer.draw_graph(graph);
+  auto node_map = viewer.empty_node_map(graph);
+  viewer.add_nodes(graph.node_begin(), graph.node_end(), node_map);
   //viewer.draw_graph(graph);
   viewer.center_view();
 
