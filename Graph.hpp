@@ -178,11 +178,13 @@ class Graph {
     }
    
     incident_iterator edge_begin() const {
-
+    
+      return IncidentIterator(this, 0);
     }
 
     incident_iterator edge_end() const {
 
+      return IncidentIterator(this, degree());
     }
 
     // HW1: YOUR CODE HERE
