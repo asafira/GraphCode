@@ -122,6 +122,7 @@ class Graph {
     /** @brief Construct an invalid node.
      */
     Node() {
+      graph_ = NULL;
     }
 
     /** @brief Return the position of this node
@@ -143,7 +144,6 @@ class Graph {
      */
     bool operator==(const Node& x) const {
       
-      (void) x;          // Quiet compiler warning
       return (this->graph_ == x.graph_) && (this->index() == x.index());
     }
 
@@ -172,6 +172,19 @@ class Graph {
       
     }
 
+    size_type degree() const {
+    
+      return graph_->nodes_[index_].adj_list.size();
+    }
+   
+    incident_iterator edge_begin() const {
+
+    }
+
+    incident_iterator edge_end() const {
+
+    }
+
     // HW1: YOUR CODE HERE
     // Supply definitions AND SPECIFICATIONS for:
     // node_value_type& value();
@@ -179,7 +192,7 @@ class Graph {
     // size_type degree() const;
     // incident_iterator edge_begin() const;
     // incident_iterator edge_end() const;
-
+   
    private:
 
     Node (const Graph* graph, size_type index) 
@@ -244,11 +257,11 @@ class Graph {
   }
   
 
-  NodeIterator node_begin() const {
+  node_iterator node_begin() const {
     return NodeIterator(this, 0);
   }
  
-  NodeIterator node_end() const {
+  node_iterator node_end() const {
     return NodeIterator(this, size());
   }
 
@@ -267,18 +280,35 @@ class Graph {
    public:
     /** Construct an invalid Edge. */
     Edge() {
+      graph_ = NULL;
     }
 
     /** Return a node of this Edge */
     Node node1() const {
-      size_type node_1_index = graph_->edges_[edge_index_].index_1;
-      return Node(graph_, node_1_index);      // Invalid Node
+      
+      size_type index_1;
+
+      if (nodes_flipped_) 
+        index_1  = graph_->edges_[edge_index_].index_2;
+
+      else
+        index_1  = graph_->edges_[edge_index_].index_1;
+
+      return Node(graph_, index_1);      // Invalid Node
     }
 
     /** Return the other node of this Edge */
     Node node2() const {
-      size_type node_2_index = graph_->edges_[edge_index_].index_2;
-      return Node(graph_, node_2_index);      // Invalid Node
+ 
+      size_type index_2;
+
+      if (nodes_flipped_)
+        index_2 = graph_->edges_[edge_index_].index_1;
+
+      else
+        index_2 = graph_->edges_[edge_index_].index_2;
+
+      return Node(graph_, index_2);      // Invalid Node
     }
 
     /** @brief Tests whether this edge and @a x are equal.
@@ -297,7 +327,6 @@ class Graph {
           return true;
       }
 
-      (void) x;          // Quiet compiler warning
       return false;
     }
 
@@ -314,7 +343,7 @@ class Graph {
    private:
     // Allow Graph to access Edge's private member data and functions.
     Edge(const Graph* graph, size_type index)
-       : edge_index_(index), graph_(const_cast<Graph*>(graph)) {
+       : edge_index_(index), graph_(const_cast<Graph*>(graph)), nodes_flipped_(false) { 
     }
 
     size_type index() {
@@ -322,11 +351,17 @@ class Graph {
       return edge_index_;
     }
 
+    void flip_nodes() {
+
+      nodes_flipped_ = !nodes_flipped_;
+    }
+
     friend class Graph;
 
     // Keep edge index and graph pointer private variables
     size_type edge_index_;
     Graph* graph_;
+    bool nodes_flipped_;
   };
 
   /** Return the total number of edges in the graph.
@@ -359,19 +394,23 @@ class Graph {
     edge_type_ input_edge;
 
     if (a < b)
-      input_edge = {a.index(), b.index()};
-    
+      input_edge = {a.index(), b.index()}; 
     else
       input_edge = {b.index(), a.index()};
 
     size_type uid = insert_into_vector(edges_, input_edge);
-    insert_into_vector(nodes_[a.index()].adj_list, b.index());
-    insert_into_vector(nodes_[b.index()].adj_list, a.index());
+
+    insert_into_vector(nodes_[a.index()].adj_list, uid);
+    insert_into_vector(nodes_[b.index()].adj_list, uid);
 
     num_edges_ = edges_.size();
- 
-    (void) a, (void) b;
-    return Edge(this, uid);
+    
+    Edge curr_edge = Edge(this, uid); 
+
+    if (b < a)
+      curr_edge.flip_nodes();
+    
+    return curr_edge;
   }
 
   /** Test whether two nodes are connected by an edge.
@@ -399,11 +438,11 @@ class Graph {
 
   
 
-  EdgeIterator edge_begin() const {
+  edge_iterator edge_begin() const {
     return EdgeIterator(this, 0);
   }
  
-  EdgeIterator edge_end() const {
+  edge_iterator edge_end() const {
     return EdgeIterator(this, num_edges());
   }
 
@@ -428,7 +467,7 @@ class Graph {
     typedef std::ptrdiff_t difference_type;
 
     /** Construct an invalid NodeIterator. */
-    NodeIterator() : p_(nullptr) {
+    NodeIterator() : p_(NULL) {
     }
 
     // HW1 #2: YOUR CODE HERE
@@ -443,7 +482,7 @@ class Graph {
         return *p_;
      }
 
-     NodeIterator& operator++() {
+     node_iterator& operator++() {
 
        size_type curr_index = p_->index(); 
        curr_index++;
@@ -457,7 +496,7 @@ class Graph {
        return *this;
      }
 
-     bool operator==(const NodeIterator& other_iter) const {
+     bool operator==(const node_iterator& other_iter) const {
        return p_ == other_iter.p_;
      }
 
@@ -466,8 +505,10 @@ class Graph {
     NodeIterator(const Graph* graph, size_type index) 
       : graph_(const_cast<Graph*>(graph)) {
 
-      if ( index < graph->size() ) {
-        Node current_node = graph->node(index);
+      assert( index <= graph_->size() );
+
+      if ( index < graph_->size() ) {
+        Node current_node = graph_->node(index);
         p_ = &current_node;
       }
 
@@ -476,10 +517,11 @@ class Graph {
 
     }
 
-    friend class Graph;   
 
     Graph* graph_;
     // HW1 #2: YOUR CODE HERE
+    
+    friend class Graph;   
   };
 
   // HW1 #2: YOUR CODE HERE
@@ -504,7 +546,7 @@ class Graph {
     typedef std::ptrdiff_t difference_type;
 
     /** Construct an invalid EdgeIterator. */
-    EdgeIterator() : p_(nullptr) {
+    EdgeIterator() : p_(NULL) {
     }
 
     // HW1 #3: YOUR CODE HERE
@@ -519,7 +561,7 @@ class Graph {
         return *p_;
      }
 
-     EdgeIterator& operator++() {
+     edge_iterator& operator++() {
 
        size_type curr_index = p_->index(); 
        curr_index++;
@@ -533,17 +575,18 @@ class Graph {
        return *this;
      }
 
-     bool operator==(const EdgeIterator& other_iter) const {
+     bool operator==(const edge_iterator& other_iter) const {
        return p_ == other_iter.p_;
      }
 
    private:
-    friend class Graph;
     // HW1 #3: YOUR CODE HERE
 
     EdgeIterator(const Graph* graph, size_type index) 
       : graph_(const_cast<Graph*>(graph)) {
       
+      assert( index <= graph->num_edges() );
+
       if ( index < graph->num_edges() ) {
         Edge current_edge = graph->edge(index);
         p_ = &current_edge;
@@ -551,10 +594,11 @@ class Graph {
 
       else
         p_ = NULL;
- 
     }
 
     Graph* graph_;
+
+    friend class Graph;
   };
 
   // HW1 #3: YOUR CODE HERE
@@ -580,7 +624,7 @@ class Graph {
     typedef std::ptrdiff_t difference_type;
 
     /** Construct an invalid IncidentIterator. */
-    IncidentIterator() {
+    IncidentIterator() : p_(NULL){
     }
 
     // HW1 #5: YOUR CODE HERE
@@ -588,9 +632,64 @@ class Graph {
     // Edge operator*() const
     // IncidentIterator& operator++()
     // bool operator==(const IncidentIterator&) const
+ 
+     Edge* p_;
+
+     Edge operator*() const {
+        return *p_;
+     }
+
+     incident_iterator& operator++() {
+       
+       curr_index_++;
+       
+       if (curr_index_ == p_->node1().degree()) 
+         p_ = NULL;
+       
+       else {  
+         Edge next_edge = Edge(node_->adj_list[curr_index_]);
+         
+         if (next_edge.node1() != *node_)
+           next_edge.flip_nodes();
+
+         p_ = &next_edge;
+       }
+
+       return *this;
+     }
+
+     bool operator==(const incident_iterator& other_iter) const {
+       return p_ == other_iter.p_;
+     }
 
    private:
     friend class Graph;
+    // HW1 #3: YOUR CODE HERE
+
+    IncidentIterator(const Node* node, size_type index) 
+      : node_(const_cast<Node*>(node)) {
+      
+      graph_ = const_cast<Graph*>(node_->graph_);
+      size_type node_degree = node_->degree();
+      assert( index <= node_degree );
+ 
+      if ( index < node_degree ) {
+        Edge current_edge = Edge(node_->adj_list[index]);
+        
+        if (current_edge.node1() != *node_)
+          current_edge.flip_nodes();
+        
+        p_ = &current_edge;
+      }
+
+      else
+        p_ = NULL;
+ 
+    }
+
+    size_type curr_index_;
+    Graph* graph_;
+    Node* node_;
     // HW1 #5: YOUR CODE HERE
   };
 
