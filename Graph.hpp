@@ -249,7 +249,7 @@ class Graph {
   }
  
   NodeIterator node_end() const {
-    return NodeIterator(this, size_);
+    return NodeIterator(this, size());
   }
 
   /////////////////
@@ -315,7 +315,12 @@ class Graph {
     // Allow Graph to access Edge's private member data and functions.
     Edge(const Graph* graph, size_type index)
        : edge_index_(index), graph_(const_cast<Graph*>(graph)) {
-    } 
+    }
+
+    size_type index() {
+
+      return edge_index_;
+    }
 
     friend class Graph;
 
@@ -393,13 +398,22 @@ class Graph {
   }
 
   
+
+  EdgeIterator edge_begin() const {
+    return EdgeIterator(this, 0);
+  }
+ 
+  EdgeIterator edge_end() const {
+    return EdgeIterator(this, num_edges());
+  }
+
   ///////////////
   // Iterators //
   ///////////////
 
   /** @class Graph::NodeIterator
    * @brief Iterator class for nodes. A forward iterator. */
-  class NodeIterator {
+  class NodeIterator : private totally_ordered<NodeIterator>{
    public:
     // These type definitions help us use STL's iterator_traits.
     /** Element type. */
@@ -430,39 +444,37 @@ class Graph {
      }
 
      NodeIterator& operator++() {
+
        size_type curr_index = p_->index(); 
        curr_index++;
-       if (curr_index == graph_->size()) {
+
+       if (curr_index == graph_->size()) 
          p_ = NULL;
-       }
-       else { 
+       
+       else  
          *p_ = graph_->node(curr_index);
-       }
+       
        return *this;
      }
 
-     bool operator==(const node_iterator& other_iter) const {
+     bool operator==(const NodeIterator& other_iter) const {
        return p_ == other_iter.p_;
      }
 
-
-     bool operator!=(const node_iterator& other_iter) const {
-       return p_ != other_iter.p_;
-     }
    private:
 
     NodeIterator(const Graph* graph, size_type index) 
       : graph_(const_cast<Graph*>(graph)) {
-      if ( index < graph->size_ ) {
+
+      if ( index < graph->size() ) {
         Node current_node = graph->node(index);
         p_ = &current_node;
       }
-      else {
+
+      else 
         p_ = NULL;
-      }
+
     }
-
-
 
     friend class Graph;   
 
@@ -477,7 +489,7 @@ class Graph {
 
   /** @class Graph::EdgeIterator
    * @brief Iterator class for edges. A forward iterator. */
-  class EdgeIterator {
+  class EdgeIterator : private totally_ordered<EdgeIterator>{
    public:
     // These type definitions help us use STL's iterator_traits.
     /** Element type. */
@@ -492,7 +504,7 @@ class Graph {
     typedef std::ptrdiff_t difference_type;
 
     /** Construct an invalid EdgeIterator. */
-    EdgeIterator() {
+    EdgeIterator() : p_(nullptr) {
     }
 
     // HW1 #3: YOUR CODE HERE
@@ -500,10 +512,49 @@ class Graph {
     // Edge operator*() const
     // EdgeIterator& operator++()
     // bool operator==(const EdgeIterator&) const
+   
+     Edge* p_;
+
+     Edge operator*() const {
+        return *p_;
+     }
+
+     EdgeIterator& operator++() {
+
+       size_type curr_index = p_->index(); 
+       curr_index++;
+
+       if (curr_index == graph_->num_edges()) 
+         p_ = NULL;
+       
+       else  
+         *p_ = graph_->edge(curr_index);
+       
+       return *this;
+     }
+
+     bool operator==(const EdgeIterator& other_iter) const {
+       return p_ == other_iter.p_;
+     }
 
    private:
     friend class Graph;
     // HW1 #3: YOUR CODE HERE
+
+    EdgeIterator(const Graph* graph, size_type index) 
+      : graph_(const_cast<Graph*>(graph)) {
+      
+      if ( index < graph->num_edges() ) {
+        Edge current_edge = graph->edge(index);
+        p_ = &current_edge;
+      }
+
+      else
+        p_ = NULL;
+ 
+    }
+
+    Graph* graph_;
   };
 
   // HW1 #3: YOUR CODE HERE
