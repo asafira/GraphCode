@@ -48,6 +48,17 @@ struct DefaultColor {
   }
 };
 
+// My color functor
+struct DazzlingColor {
+  int max_ = 1;
+  DazzlingColor(int max) : max_(max) {}; 
+  template <typename NODE>
+  Color operator()(const NODE& node) {
+    return Color::make_heat(node.value()/(float)max_);
+    //return Color::make_heat((node.value()+2)/10.0);
+  }
+};
+
 // A default position functor that returns node.position() for any node
 struct DefaultPosition {
   template <typename NODE>

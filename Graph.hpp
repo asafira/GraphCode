@@ -1,12 +1,12 @@
 #ifndef CS207_GRAPH_HPP
 #define CS207_GRAPH_HPP
-
 /** @file Graph.hpp
  * @brief An undirected graph type
  */
 
 #include <algorithm>
 #include <vector>
+#include <queue>
 #include <cassert>
 
 #include "CS207/Util.hpp"
@@ -108,6 +108,61 @@ class Graph {
     edges_.clear();
   }
 
+
+
+  int shortest_path_lengths(Graph<int>& g, const Point& point) {
+  
+    Node root = *std::min_element(g.node_begin(), g.node_end(), MyComparator(point));
+    root.value() = 0;
+    std::queue<Graph::Node> nodes_to_visit;
+    nodes_to_visit.push(root);
+    
+    std::vector<bool> visited(g.size(), false);
+    visited[(root).index()] = true;
+
+    Node curr_node;
+    int max = 0;
+  
+    while (!nodes_to_visit.empty()) {
+      curr_node = nodes_to_visit.front();
+      nodes_to_visit.pop();
+      
+
+      if (max < curr_node.value())
+        max = curr_node.value();
+     
+ 
+      for( incident_iterator it = curr_node.edge_begin(); it != curr_node.edge_end(); ++it) {
+        if (!visited[(*it).node2().index()]){
+          nodes_to_visit.push((*it).node2());
+          visited[(*it).node2().index()] = true;
+          (*it).node2().value() = curr_node.value() + 1; 
+
+        }
+      }
+    }
+
+    for ( auto node_index : visited) {
+
+      if( !visited[node_index])
+        g.node(node_index).value() = -1;
+    } 
+
+    return max;
+  }
+
+
+  struct MyComparator {
+    Point p_;
+    MyComparator(const Point& p) : p_(p) {
+    };
+
+    template <typename NODE>
+    bool operator()(const NODE& node1, const NODE& node2) const {
+      return (normSq(p_ - node1.position()) < normSq(p_ - node2.position()));
+      }
+    };
+
   /////////////////
   // GRAPH NODES //
   /////////////////
@@ -156,24 +211,19 @@ class Graph {
      * and y, exactly one of x == y, x < y, and y < x is true.
      */
     bool operator<(const Node& x) const {
-     
       (void) x;           // Quiet compiler warning
       return this->index() < x.index();
     }
 
     node_value_type& value() {
-
       return graph_->nodes_[index_].value;
     }
 
     const node_value_type& value() const {
-
       return graph_->nodes_[index_].value;
-      
     }
 
     size_type degree() const {
-    
       return graph_->nodes_[index_].adj_list.size();
     }
    
@@ -223,12 +273,11 @@ class Graph {
    *
    * Complexity: O(1) amortized operations.
    */
-  Node add_node(const Point& position, const node_value_type& = node_value_type()) {
+  Node add_node(const Point& position, const node_value_type& myvalue= node_value_type()) {
  
     std::vector<size_type> adj_list;
     
-    nodes_.push_back({position, node_value_type(), adj_list});
-    
+    nodes_.push_back({position, myvalue, adj_list});
     size_++;
     (void) position;      // Quiet compiler warning
     return Node(this, size_ - 1);        // Invalid node
@@ -254,7 +303,6 @@ class Graph {
    */
   Node node(size_type i) const {
     assert(i < size());
-    (void) i;             // Quiet compiler warning
     return Node(this, i);        // Invalid node
   }
   
@@ -393,26 +441,28 @@ class Graph {
     assert (a.index() < size_ && b.index() < size_);
     assert (a.index() != b.index());
 
-    edge_type_ input_edge;
+    size_type uid = num_edges_;
 
-    if (a < b)
-      input_edge = {a.index(), b.index()}; 
-    else
-      input_edge = {b.index(), a.index()};
+    std::vector<size_type> a_adj_list = nodes_[a.index()].adj_list; 
 
-    size_type uid = insert_into_vector(edges_, input_edge);
+    for (std::vector<size_type>::iterator it = a_adj_list.begin(); it != a_adj_list.end();  it++) {
 
-    insert_into_vector(nodes_[a.index()].adj_list, uid);
-    insert_into_vector(nodes_[b.index()].adj_list, uid);
+      if (Edge(this, *it).node2() == b) 
+        return Edge(this, *it);
 
-    num_edges_ = edges_.size();
-    
-    Edge curr_edge = Edge(this, uid); 
+      if (Edge(this, *it).node1() == b) {
+        Edge new_edge = Edge(this, *it);
+        new_edge.flip_nodes();
+        return new_edge;
+      }
+    }
 
-    if (b < a)
-      curr_edge.flip_nodes();
-    
-    return curr_edge;
+    insert(nodes_[b.index()].adj_list, uid);
+    insert(nodes_[a.index()].adj_list, uid);
+    edges_.push_back({a.index(), b.index()});
+
+    num_edges_++;
+    return Edge(this, uid);
   }
 
   /** Test whether two nodes are connected by an edge.
@@ -469,7 +519,7 @@ class Graph {
     typedef std::ptrdiff_t difference_type;
 
     /** Construct an invalid NodeIterator. */
-    NodeIterator() : p_(NULL) {
+    NodeIterator() : graph_(NULL) {
     }
 
     // HW1 #2: YOUR CODE HERE
@@ -478,29 +528,27 @@ class Graph {
     // NodeIterator& operator++()
     // bool operator==(const NodeIterator&) const
 
-     Node* p_;
 
      Node operator*() const {
-        return *p_;
+        return graph_->node(curr_node_index_);
      }
 
      node_iterator& operator++() {
+        curr_node_index_++;
+        if (curr_node_index_ >= graph_->size()) {
+          curr_node_index_ = graph_->size();
+        }
+        return *this;
 
-       size_type curr_index = p_->index(); 
-       curr_index++;
-
-       if (curr_index == graph_->size()) 
-         p_ = NULL;
-       
-       else  
-         *p_ = graph_->node(curr_index);
-       
-       return *this;
      }
 
      bool operator==(const node_iterator& other_iter) const {
-       return p_ == other_iter.p_;
+       if (graph_ == other_iter.graph_)
+         if (curr_node_index_ == other_iter.curr_node_index_)
+           return true;
+       return false;
      }
+
 
    private:
 
@@ -509,18 +557,12 @@ class Graph {
 
       assert( index <= graph_->size() );
 
-      if ( index < graph_->size() ) {
-        Node current_node = graph_->node(index);
-        p_ = &current_node;
-      }
-
-      else 
-        p_ = NULL;
-
+      curr_node_index_ = index;
     }
 
 
     Graph* graph_;
+    size_type  curr_node_index_;
     // HW1 #2: YOUR CODE HERE
     
     friend class Graph;   
@@ -611,7 +653,7 @@ class Graph {
 
   /** @class Graph::IncidentIterator
    * @brief Iterator class for edges incident to a node. A forward iterator. */
-  class IncidentIterator {
+  class IncidentIterator : private totally_ordered<IncidentIterator>{
    public:
     // These type definitions help us use STL's iterator_traits.
     /** Element type. */
@@ -626,7 +668,7 @@ class Graph {
     typedef std::ptrdiff_t difference_type;
 
     /** Construct an invalid IncidentIterator. */
-    IncidentIterator() : p_(NULL){
+    IncidentIterator() : node_(NULL), graph_(NULL){
     }
 
     // HW1 #5: YOUR CODE HERE
@@ -635,33 +677,31 @@ class Graph {
     // IncidentIterator& operator++()
     // bool operator==(const IncidentIterator&) const
  
-     Edge* p_;
-
+ 
      Edge operator*() const {
-        return *p_;
+        assert ( curr_edge_index_ < node_->degree() );
+
+        Edge curr_edge = Edge(graph_, graph_->nodes_[node_->index()].adj_list[curr_edge_index_]);
+        if (curr_edge.node1() != *node_)
+          curr_edge.flip_nodes();
+        return curr_edge;
      }
 
      incident_iterator& operator++() {
-       
-       curr_index_++;
-       
-       if (curr_index_ == p_->node1().degree()) 
-         p_ = NULL;
-       
-       else {  
-         Edge next_edge = Edge(node_->adj_list[curr_index_]);
-         
-         if (next_edge.node1() != *node_)
-           next_edge.flip_nodes();
-
-         p_ = &next_edge;
-       }
+       curr_edge_index_++; 
+       if (curr_edge_index_ >= node_->degree())  
+         curr_edge_index_ = node_->degree();
 
        return *this;
      }
 
      bool operator==(const incident_iterator& other_iter) const {
-       return p_ == other_iter.p_;
+       if (graph_ == other_iter.graph_)
+          if(node_ == other_iter.node_)
+            if (curr_edge_index_ == other_iter.curr_edge_index_)
+              return true;
+     
+       return false;
      }
 
    private:
@@ -672,26 +712,16 @@ class Graph {
       : node_(const_cast<Node*>(node)) {
       
       graph_ = const_cast<Graph*>(node_->graph_);
-      size_type node_degree = node_->degree();
-      assert( index <= node_degree );
- 
-      if ( index < node_degree ) {
-        Edge current_edge = Edge(node_->adj_list[index]);
-        
-        if (current_edge.node1() != *node_)
-          current_edge.flip_nodes();
-        
-        p_ = &current_edge;
-      }
 
-      else
-        p_ = NULL;
+      assert( index <= node_->degree() );
+ 
+      curr_edge_index_ = index;
  
     }
 
-    size_type curr_index_;
     Graph* graph_;
     Node* node_;
+    size_type curr_edge_index_;
     // HW1 #5: YOUR CODE HERE
   };
 
@@ -704,28 +734,34 @@ class Graph {
 
 
     // Define < for std::map
-    bool operator<(edge_type_ other) const {
-
-        if ( index_1 != other.index_1)
-          return index_1 < other.index_1; 
-
-        else
-          return index_2 < other.index_2;
+    bool operator<(edge_type_ e2) const {
+      return std::tie(index_1, index_2) < std::tie(e2.index_1, e2.index_2);
     }
   };
 
   
   // Inspiration for this came from lafstern.org/matt/col1.pdf
   template <class Vector, class T>
-  size_type insert_into_vector(Vector& v,  const T& elem) {
+  void insert(Vector& v,  const T& elem) {
 
     typename Vector::iterator high = std::lower_bound(v.begin(), v.end(), elem);
+
     if (high == v.end() || elem < *high) {
       v.insert(high, elem);
+      //return curr_pos;
+      //return (&(*curr_pos) - &v[0])i;
     }
-    return (&(*high) - &v[0]);
+    
+    //return high;
+    //return (&(*high)-&v[0]);
   } 
 
+ /* void add_one (std::vector<size_type> vec, std::vector::iterator it) {
+  
+    for ( ; it != vec.end(); ++it)
+      (*it)++;
+  }
+*/
   struct node_type_ {
     Point point;
     node_value_type value;

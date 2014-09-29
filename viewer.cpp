@@ -30,7 +30,7 @@ int main(int argc, char** argv)
   }
 
   // Construct a Graph
-  using GraphType = Graph<float>;
+  using GraphType = Graph<int>;
   GraphType graph;
   std::vector<typename GraphType::node_type> nodes;
 
@@ -56,11 +56,13 @@ int main(int argc, char** argv)
   // Launch a viewer
   CS207::SDLViewer viewer;
   viewer.launch();
+  Point source = Point(-1,0,1);
+  int max_degree_of_separation = graph.shortest_path_lengths(graph, source);
 
   // Set the viewer
   //viewer.draw_graph(graph);
   auto node_map = viewer.empty_node_map(graph);
-  viewer.add_nodes(graph.node_begin(), graph.node_end(), node_map);
+  viewer.add_nodes(graph.node_begin(), graph.node_end(), CS207::DazzlingColor(max_degree_of_separation), node_map);
   viewer.add_edges(graph.edge_begin(), graph.edge_end(), node_map);
   viewer.center_view();
 
