@@ -39,14 +39,35 @@ class filter_iterator
   // Constructor
   filter_iterator(const Pred& p, const It& first, const It& last)
       : p_(p), it_(first), end_(last) {
-    // HW1 #4: YOUR CODE HERE
+
+    if (it_ != end_) {
+      if (!p_(*it_))
+        ++it_;
+    }
+
   }
 
-  // HW1 #4: YOUR CODE HERE
-  // Supply definitions AND SPECIFICATIONS for:
-  // value_type operator*() const;
-  // self_type& operator++();
-  // bool operator==(const self_type&) const;
+  // @brief Return the value_type that the iterator currently points to. 
+  value_type operator*() const {
+    return *it_;
+  }
+
+  /* @brief Incrememnts the iterator to the next value that returns
+     true from @a p_
+   */
+  self_type& operator++() {
+    while (++it_ != end_ && !p_(*(it_))) {
+      if (it_ == end_) 
+        return *this;
+    }
+
+    return *this;
+  }
+
+  // @brief checks if two iterators are equal
+  bool operator==(const self_type& other_it ) const {
+    return it_ == other_it.it_;
+  }
 
  private:
   Pred p_;
@@ -67,10 +88,18 @@ filter_iterator<Pred,Iter> make_filtered(const Iter& it, const Iter& end,
   return filter_iterator<Pred,Iter>(p, it, end);
 }
 
-// HW1 #4: YOUR CODE HERE
-// Specify and write an interesting predicate on the nodes.
-// Explain what your predicate is intended to do and test it.
 // If you'd like you may create new nodes and tets files.
+
+// MyPredicate returns all of the nodes with positions inside the sphere with radius .5.
+struct MyPredicate {
+
+  template <typename NODE>
+  bool operator()(const NODE& n) {
+    return norm(n.position()) < 0.5;
+  }
+
+};  
+
 
 /** Test predicate for HW1 #4 */
 struct SlicePredicate {
@@ -79,7 +108,6 @@ struct SlicePredicate {
     return n.position().x < 0;
   }
 };
-
 
 int main(int argc, char** argv)
 {
@@ -117,8 +145,11 @@ int main(int argc, char** argv)
   CS207::SDLViewer viewer;
   viewer.launch();
 
-  // HW1 #4: YOUR CODE HERE
   // Use the filter_iterator to plot an induced subgraph.
+  auto node_map = viewer.empty_node_map(graph);
+  viewer.add_nodes(make_filtered(graph.node_begin(), graph.node_end(), MyPredicate()), make_filtered(graph.node_end(), graph.node_end(), MyPredicate()), node_map); 
+  viewer.add_edges(graph.edge_begin(), graph.edge_end(), node_map);
+  viewer.center_view();
 
   return 0;
 }
