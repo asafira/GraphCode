@@ -136,11 +136,11 @@ int main(int argc, char** argv) {
     for (unsigned i = 1; i < t.size(); ++i) {
       graph.add_edge(nodes[t[0]], nodes[t[1]]);
       graph.add_edge(nodes[t[0]], nodes[t[2]]);
-#if 0
+
       // Diagonal edges: include as of HW2 #2
       graph.add_edge(nodes[t[0]], nodes[t[3]]);
       graph.add_edge(nodes[t[1]], nodes[t[2]]);
-#endif
+
       graph.add_edge(nodes[t[1]], nodes[t[3]]);
       graph.add_edge(nodes[t[2]], nodes[t[3]]);
     }
@@ -155,6 +155,9 @@ int main(int argc, char** argv) {
   
   for (auto it = graph.node_begin(); it != graph.node_end(); ++it)
     (*it).value() = {initial_velocity, mass};
+
+  for (auto it = graph.edge_begin(); it != graph.edge_end(); ++it)
+    (*it).value() = {norm((*it).node1().position()- (*it).node2().position())};
 
   // Print out the stats
   std::cout << graph.num_nodes() << " " << graph.num_edges() << std::endl;
