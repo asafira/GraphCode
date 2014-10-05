@@ -27,9 +27,14 @@ struct NodeData {
   double mass;     //< Node mass
 };
 
+struct EdgeData {
+
+  double length;
+};
+
 // HW2 #1 YOUR CODE HERE
 // Define your Graph type
-typedef Graph<NodeData> GraphType;
+typedef Graph<NodeData, EdgeData> GraphType;
 typedef typename GraphType::node_type Node;
 typedef typename GraphType::edge_type Edge;
 
@@ -77,9 +82,30 @@ struct Problem1Force {
    * except that points at (0, 0, 0) and (1, 0, 0) never move. We can
    * model that by returning a zero-valued force. */
   Point operator()(Node n, double t) {
-    // HW2 #1: YOUR CODE HERE
-    (void) n; (void) t;     // silence compiler warnings
-    return Point();
+    
+    if (n.position() == Point(0,0,0) || n.position() == Point(1,0,0)) {
+     
+      return Point(0,0,0);
+    }
+
+    else {
+  
+      double k = 100.0;
+
+      Point grav_force = {0,0,(-1)*n.value().mass*grav};
+
+      Point spring_force = {0,0,0};
+      
+      for (auto it = n.edge_begin(); it != n.edge_end(); ++it) {
+
+        Point disp = ((*it).node1().position() - (*it).node2().position());
+        spring_force += -1 * k * (disp/norm(disp)) * (norm(disp) - (*it).value().length);
+      }
+   
+    Point total_force = grav_force + spring_force;
+      
+    return total_force;
+    }
   }
 };
 
@@ -123,6 +149,12 @@ int main(int argc, char** argv) {
   // HW2 #1 YOUR CODE HERE
   // Set initial conditions for your nodes, if necessary.
   // Construct Forces/Constraints
+
+  double mass = 1.0/ (double) graph.num_nodes();
+  Point initial_velocity = Point(0,0,0);
+  
+  for (auto it = graph.node_begin(); it != graph.node_end(); ++it)
+    (*it).value() = {initial_velocity, mass};
 
   // Print out the stats
   std::cout << graph.num_nodes() << " " << graph.num_edges() << std::endl;

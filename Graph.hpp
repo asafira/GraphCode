@@ -19,7 +19,7 @@
  * Users can add and retrieve nodes and edges. Edges are unique (there is at
  * most one edge between any pair of distinct nodes).
  */
-template <typename V>
+template <typename V, typename E>
 class Graph {
  public:
 
@@ -29,6 +29,7 @@ class Graph {
 
 
   typedef V node_value_type;
+  typedef E edge_value_type;
   /** Type of this graph. */
   typedef Graph graph_type;
 
@@ -70,7 +71,7 @@ class Graph {
 
   /** @brief Construct an empty graph. */
   Graph() 
-    : size_(0), num_edges_(0),  nodes_() {
+    : nodes_(), edges_() {
   }
   /** Default destructor */
   ~Graph() = default;
@@ -85,7 +86,7 @@ class Graph {
    */
   size_type size() const {
    
-    return size_;
+    return nodes_.size();
   }
 
   /** @brief Remove all nodes and edges from this graph.
@@ -94,8 +95,6 @@ class Graph {
    *  Invalidates all outstanding Node and Edge objects.
    */
   void clear() {
-    num_edges_ = 0;
-    size_ = 0;
     nodes_.clear();
     edges_.clear();
   }
@@ -109,7 +108,8 @@ class Graph {
    *  v edges to traverse before reaching the node closest
    *  to @a point.
   */
-  int shortest_path_lengths(Graph<int>& g, const Point& point) {
+  template<typename T>
+  int shortest_path_lengths(Graph<int, T>& g, const Point& point) {
   
     // Find the node closest point and give it value 0
     Node root = *std::min_element(g.node_begin(), g.node_end(), MyComparator(point));
@@ -175,6 +175,117 @@ class Graph {
       }
     };
 
+  
+    size_type remove_node (const Node& n) {
+  
+      assert( n.index() < size());
+      // Remove edges connected with node
+      while(!(nodes_[n.index()].adj_list.empty()))
+        remove_edge(Edge(this, nodes_[n.index()].adj_list[0]));
+      
+      change_node_id(node(size() - 1), n.index());
+      
+      nodes_.pop_back();
+ 
+      return n.index();
+    }
+
+    void change_node_id(Node node, size_type new_node_index) {
+
+      if (node.index() == new_node_index)
+        return;
+ 
+      size_type old_node_index = node.index();
+
+      for (auto i = node.edge_begin(); i != node.edge_end(); ++i) {
+       
+        if (edges_[(*i).index()].index_1 == old_node_index)
+          edges_[(*i).index()].index_1 = new_node_index;
+       
+        else if (edges_[(*i).index()].index_2 == old_node_index)
+          edges_[(*i).index()].index_1 = new_node_index;
+
+      }
+
+      nodes_[new_node_index] = nodes_[node.index()];
+       
+    }
+
+    
+    
+    node_iterator remove_node(node_iterator n_it) {
+
+      size_type next_uid = remove_node(*n_it);
+      return NodeIterator(this, next_uid);
+    }
+
+    size_type remove_edge(const Node& a, const Node& b) {
+
+      std::cout<< "hi" << std::endl; 
+      for (auto it = a.edge_begin(); it != a.edge_end(); ++it) {
+   
+        std::cout<< "hi " << (it == a.edge_end()) << (it == a.edge_begin()) << std::endl; 
+        if ((*it).node2() == b) {
+   
+          std::cout<< "hi" << std::endl; 
+          return remove_edge(*it);
+        }
+      }
+    };
+  
+    size_type remove_edge(const Edge& e) {
+
+      assert (e.index() < e.graph_->num_edges());
+
+      std::cout<< "Removing edge with index " << e.index() << std::endl;
+      
+      std::cout << "Edges in adj list: " << nodes_[e.node1().index()].adj_list[0] << std::endl; 
+      
+      nodes_[e.node1().index()].adj_list.erase(std::remove(
+                  nodes_[e.node1().index()].adj_list.begin(), 
+                  nodes_[e.node1().index()].adj_list.end(), e.index()),
+                  nodes_[e.node1().index()].adj_list.end());
+      
+      nodes_[e.node2().index()].adj_list.erase(std::remove(
+                  nodes_[e.node2().index()].adj_list.begin(), 
+                  nodes_[e.node2().index()].adj_list.end(), e.index()), 
+                  nodes_[e.node2().index()].adj_list.end());
+      
+
+      change_edge_uid(Edge(this, num_edges()-1), e.index());
+
+     
+      edges_.pop_back();
+
+      return e.index();
+      }
+
+    void change_edge_uid(Edge e, size_type new_edge_uid) {
+
+      if ( e.index() == new_edge_uid) 
+        return;
+
+      size_type old_edge_uid = e.index();
+
+      edges_[new_edge_uid] = edges_[old_edge_uid];
+      
+      std::replace(nodes_[e.node1().index()].adj_list.begin(), 
+                          nodes_[e.node1().index()].adj_list.end(), 
+                          old_edge_uid, new_edge_uid);
+
+      std::replace(nodes_[e.node2().index()].adj_list.begin(), 
+                     nodes_[e.node2().index()].adj_list.end(), 
+                     old_edge_uid, new_edge_uid);
+
+      return;
+    }
+
+    edge_iterator remove_edge(edge_iterator e_it) {
+    
+      size_type new_uid = remove_edge(*e_it);
+      return EdgeIterator(this, new_uid);
+    }
+
   /////////////////
   // GRAPH NODES //
   /////////////////
@@ -196,6 +307,15 @@ class Graph {
      *  @post Return 3d Point result stored in node
      */
     const Point& position() const {
+  
+      return graph_->nodes_[index_].point;
+    }
+
+    /** @brief return a modifiable reference to the 
+    * position of the node.
+    * @post Returns the 3d point associated with this node
+    */
+    Point& position() {
   
       return graph_->nodes_[index_].point;
     }
@@ -256,6 +376,7 @@ class Graph {
 
       return IncidentIterator(this, degree());
     }
+
    
   private:
 
@@ -291,9 +412,7 @@ class Graph {
     std::vector<size_type> adj_list;
     
     nodes_.push_back({position, myvalue, adj_list});
-    size_++;
-    (void) position;      // Quiet compiler warning
-    return Node(this, size_ - 1);        // Invalid node
+    return Node(this, size() - 1);        // Invalid node
   }
 
   /** Determine if this Node belongs to this Graph
@@ -380,6 +499,24 @@ class Graph {
 
       return Node(graph_, index_2);      // Invalid Node
     }
+/*
+    double length() const {
+
+      return graph_->rest_lengths[edge_index_]; 
+    }
+*/
+
+    // Return value of current node
+    edge_value_type& value() {
+      
+      return graph_->edges_[edge_index_].value;
+    }
+
+    // Return immutable value of this node
+    const edge_value_type& value() const {
+      
+      return graph_->edges_[edge_index_].value;
+    }
 
     /** @brief Tests whether this edge and @a x are equal.
      *  @pre 0 <= @x <= num_edges()
@@ -420,7 +557,7 @@ class Graph {
     }
 
     // Output the index of the current edge
-    size_type index() {
+    size_type index() const {
 
       return edge_index_;
     }
@@ -445,8 +582,8 @@ class Graph {
    * Complexity: No more than O(num_nodes() + num_edges()), hopefully less
    */
   size_type num_edges() const {
-    // HW0: YOUR CODE HERE
-    return num_edges_;
+    
+    return edges_.size();
   }
 
   /** @brief Add an edge to the graph, or return the current edge 
@@ -462,7 +599,7 @@ class Graph {
    *
    *  Complexity: No more than O(num_nodes() + num_edges()), hopefully less
    */
-  Edge add_edge(const Node& a, const Node& b) {
+  Edge add_edge(const Node& a, const Node& b, const edge_value_type& myvalue= edge_value_type()) {
  
     // Check that nodes are valid
     assert (a.index() < size() && b.index() < size());
@@ -477,22 +614,22 @@ class Graph {
 
       if (Edge(this, *it).node1() == b) {
         Edge new_edge = Edge(this, *it);
-        // Flip edges before returning abide by specifications
+        // Flip edges before returning to abide by specifications
         new_edge.flip_nodes();
         return new_edge;
       }
     }
 
     // Create uid for new edge
-    size_type uid = num_edges_;
+    size_type uid = num_edges();
 
     //Add nodes into adjacency lists as new edge in edges vector
     nodes_[b.index()].adj_list.push_back(uid);
     nodes_[a.index()].adj_list.push_back(uid);
-    edges_.push_back({a.index(), b.index()});
+    edges_.push_back({a.index(), b.index(), myvalue});
 
-    num_edges_++;
-
+    //rest_lengths.push_back(norm(a.position() - b.position() ) );
+    
     return Edge(this, uid);
   }
 
@@ -505,12 +642,12 @@ class Graph {
   bool has_edge(const Node& a, const Node& b) const {
     
     // Iterate through adjacency list for a to find if edge exists 
-    std::vector<size_type> a_adj_list = nodes_[a.index()].adj_list; 
-    for (std::vector<size_type>::iterator it = a_adj_list.begin(); it != a_adj_list.end();  it++) {
+    //std::vector<size_type> a_adj_list = nodes_[a.index()].adj_list; 
+    for (auto& it : nodes_[a.index()].adj_list) {
 
-      if (Edge(this, *it).node2() == b || Edge(this, *it).node1()==b) 
+      if (Edge(this, it).node1() == b || Edge(this, it).node2() == b) 
         return true;
-      }
+    }
 
     return false;
   }
@@ -636,7 +773,7 @@ class Graph {
       */
      Edge operator*() const {
         
-        assert (curr_edge_index_ < graph_->num_edges_);
+        assert (curr_edge_index_ < graph_->num_edges());
         return Edge(graph_, curr_edge_index_);
      }
 
@@ -663,7 +800,7 @@ class Graph {
     /* @brief Constructs an iterator over the edges
      * in @a *graph pointing at the edge with index
      * @index
-     * @pre 0 <= index <=  graph->num_edges_;
+     * @pre 0 <= index <=  graph->num_edges();
      */
     EdgeIterator(const Graph* graph, size_type index) 
       : graph_(const_cast<Graph*>(graph)), curr_edge_index_(index) {
@@ -766,6 +903,7 @@ class Graph {
   struct edge_type_ {
     size_type index_1;
     size_type index_2;
+    edge_value_type value;
 
 
     // Define < for std::map
@@ -773,6 +911,8 @@ class Graph {
       return std::tie(index_1, index_2) < std::tie(e2.index_1, e2.index_2);
     }
   };
+
+  std::vector<double> rest_lengths;
 
   
  /* // Inspiration for this came from lafstern.org/matt/col1.pdf
@@ -795,10 +935,6 @@ class Graph {
     node_value_type value;
     std::vector<size_type> adj_list;
   };
-
-  // Keep track of size and num_edges
-  size_type size_;
-  size_type num_edges_;
 
   // Vectors to hold nodes and edges
   std::vector<node_type_> nodes_;
