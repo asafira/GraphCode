@@ -120,6 +120,7 @@ int main()
       sf_print(!g.has_edge(g.node(n1), g.node(n2)),
                "Graph !has_edge after remove");
   }
+
   sf_print(g.num_edges() == 50, "Removed 50 Edges");
 
   // Count edges the long way

@@ -192,10 +192,10 @@ class Graph {
 
     void change_node_id(Node node, size_type new_node_index) {
 
-      if (node.index() == new_node_index)
-        return;
- 
       size_type old_node_index = node.index();
+
+      if (old_node_index == new_node_index)
+        return;
 
       for (auto i = node.edge_begin(); i != node.edge_end(); ++i) {
        
@@ -203,7 +203,7 @@ class Graph {
           edges_[(*i).index()].index_1 = new_node_index;
        
         else if (edges_[(*i).index()].index_2 == old_node_index)
-          edges_[(*i).index()].index_1 = new_node_index;
+          edges_[(*i).index()].index_2 = new_node_index;
 
       }
 
@@ -221,25 +221,20 @@ class Graph {
 
     size_type remove_edge(const Node& a, const Node& b) {
 
-      std::cout<< "hi" << std::endl; 
-      for (auto it = a.edge_begin(); it != a.edge_end(); ++it) {
+      for (incident_iterator it = a.edge_begin(); it != a.edge_end(); ++it) {
    
-        std::cout<< "hi " << (it == a.edge_end()) << (it == a.edge_begin()) << std::endl; 
-        if ((*it).node2() == b) {
+        if ((*it).node2() == b || (*it).node1() == b) {
    
-          std::cout<< "hi" << std::endl; 
           return remove_edge(*it);
         }
       }
+
+      return 0; 
     };
   
     size_type remove_edge(const Edge& e) {
 
       assert (e.index() < e.graph_->num_edges());
-
-      std::cout<< "Removing edge with index " << e.index() << std::endl;
-      
-      std::cout << "Edges in adj list: " << nodes_[e.node1().index()].adj_list[0] << std::endl; 
       
       nodes_[e.node1().index()].adj_list.erase(std::remove(
                   nodes_[e.node1().index()].adj_list.begin(), 
@@ -262,7 +257,7 @@ class Graph {
 
     void change_edge_uid(Edge e, size_type new_edge_uid) {
 
-      if ( e.index() == new_edge_uid) 
+      if (e.index() == new_edge_uid) 
         return;
 
       size_type old_edge_uid = e.index();
@@ -270,12 +265,12 @@ class Graph {
       edges_[new_edge_uid] = edges_[old_edge_uid];
       
       std::replace(nodes_[e.node1().index()].adj_list.begin(), 
-                          nodes_[e.node1().index()].adj_list.end(), 
-                          old_edge_uid, new_edge_uid);
+                   nodes_[e.node1().index()].adj_list.end(), 
+                   old_edge_uid, new_edge_uid);
 
       std::replace(nodes_[e.node2().index()].adj_list.begin(), 
-                     nodes_[e.node2().index()].adj_list.end(), 
-                     old_edge_uid, new_edge_uid);
+                   nodes_[e.node2().index()].adj_list.end(), 
+                   old_edge_uid, new_edge_uid);
 
       return;
     }
@@ -542,11 +537,11 @@ class Graph {
     /** @brief Defines the less than operator for comparing edges
      *  @post Result is a boolean value such that the edges obey trichotomy
      */
-    bool operator<(const Edge& x) const {
+    bool operator<(const Edge& e) const {
       size_type this_index_1 = graph_->edges_[edge_index_].index_1;
-      size_type x_index_1 = x.graph_->edges_[edge_index_].index_1;
+      size_type e_index_1 = e.graph_->edges_[edge_index_].index_1;
       
-      return this_index_1 < x_index_1; 
+      return (this_index_1 < e_index_1 || graph_ < e.graph_); 
     }
 
    private:
@@ -641,11 +636,9 @@ class Graph {
    */
   bool has_edge(const Node& a, const Node& b) const {
     
-    // Iterate through adjacency list for a to find if edge exists 
-    //std::vector<size_type> a_adj_list = nodes_[a.index()].adj_list; 
-    for (auto& it : nodes_[a.index()].adj_list) {
+    for (incident_iterator it = a.edge_begin(); it != a.edge_end(); ++it) {
 
-      if (Edge(this, it).node1() == b || Edge(this, it).node2() == b) 
+      if ((*it).node2() == b) 
         return true;
     }
 
