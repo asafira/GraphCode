@@ -20,6 +20,8 @@
 
 // Gravity in meters/sec^2
 static constexpr double grav = 9.81;
+double c;
+
 
 /** Custom structure of data to store with Nodes */
 struct NodeData {
@@ -28,7 +30,6 @@ struct NodeData {
 };
 
 struct EdgeData {
-
   double length;
 };
 
@@ -67,7 +68,8 @@ double symp_euler_step(G& g, double t, double dt, F force) {
   for (auto it = g.node_begin(); it != g.node_end(); ++it) {
     auto n = *it;
     // v^{n+1} = v^{n} + F(x^{n+1},t) * dt / m
-    n.value().velocity += force(n, t) * (dt / n.value().mass);
+    if (n.position() != Point(0,0,0) && n.position() != Point(1,0,0)) 
+      n.value().velocity += force(n, t) * (dt / n.value().mass);
   }
 
   return t + dt;
@@ -81,7 +83,7 @@ struct Problem1Force {
    * For HW2 #1, this is a combination of mass-spring force and gravity,
    * except that points at (0, 0, 0) and (1, 0, 0) never move. We can
    * model that by returning a zero-valued force. */
-  Point operator()(Node n, double t) {
+  Point operator()(Node n, double) {
     
     if (n.position() == Point(0,0,0) || n.position() == Point(1,0,0)) {
      
@@ -109,6 +111,76 @@ struct Problem1Force {
   }
 };
 
+struct GravityForce {
+  
+  Point operator()(Node n, double) {
+    
+    Point grav_force = {0,0,(-1)*n.value().mass*grav};
+      
+    return grav_force;
+  }
+};
+
+
+
+struct MassSpringForce {
+  
+  Point operator()(Node n, double) {
+    
+    double k = 100.0;
+    
+    Point spring_force = {0,0,0};
+      
+    for (auto it = n.edge_begin(); it != n.edge_end(); ++it) {
+
+      Point disp = ((*it).node1().position() - (*it).node2().position());
+      spring_force += -1 * k * (disp/norm(disp)) * (norm(disp) - (*it).value().length);
+    }
+   
+  return spring_force;
+  }
+};
+
+
+struct DampingForce {
+  
+  Point operator()(Node n, double) {
+    
+    
+    Point damping_force = -1.0 * c * n.value().velocity;
+   
+    return damping_force;
+  }
+};
+
+
+struct NoForce {
+
+  Point operator()(Node , double) {
+
+    return {0,0,0};
+  }
+};
+
+template<typename F1, typename F2, typename F3 = NoForce>
+struct make_combined_force {
+
+  F1 force1_;
+  F2 force2_;
+  F3 force3_;
+
+  make_combined_force(F1 force1, F2 force2) : force1_(force1), force2_(force2) {
+  }
+
+  make_combined_force(F1 force1, F2 force2, F3 force3) 
+                       : force1_(force1), force2_(force2), force3_(force3) {
+  }
+
+  Point operator()(Node n, double t) {
+
+    return (force1_(n, t) + force2_(n, t) + force3_(n, t));
+  }
+};
 
 int main(int argc, char** argv) {
   // Check arguments
@@ -152,6 +224,7 @@ int main(int argc, char** argv) {
 
   double mass = 1.0/ (double) graph.num_nodes();
   Point initial_velocity = Point(0,0,0);
+  c = 1.0 / (double) graph.num_nodes();
   
   for (auto it = graph.node_begin(); it != graph.node_end(); ++it)
     (*it).value() = {initial_velocity, mass};
@@ -179,7 +252,8 @@ int main(int argc, char** argv) {
 
   for (double t = t_start; t < t_end; t += dt) {
     //std::cout << "t = " << t << std::endl;
-    symp_euler_step(graph, t, dt, Problem1Force());
+
+    symp_euler_step(graph, t, dt, make_combined_force<GravityForce, MassSpringForce, DampingForce>(GravityForce(), MassSpringForce(), DampingForce()));
 
     // Update viewer with nodes' new positions
     viewer.add_nodes(graph.node_begin(), graph.node_end(), node_map);

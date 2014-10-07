@@ -189,35 +189,14 @@ class Graph {
  
       return n.index();
     }
-
-    void change_node_id(Node node, size_type new_node_index) {
-
-      size_type old_node_index = node.index();
-
-      if (old_node_index == new_node_index)
-        return;
-
-      for (auto i = node.edge_begin(); i != node.edge_end(); ++i) {
-       
-        if (edges_[(*i).index()].index_1 == old_node_index)
-          edges_[(*i).index()].index_1 = new_node_index;
-       
-        else if (edges_[(*i).index()].index_2 == old_node_index)
-          edges_[(*i).index()].index_2 = new_node_index;
-
-      }
-
-      nodes_[new_node_index] = nodes_[node.index()];
-       
-    }
-
     
-    
+
     node_iterator remove_node(node_iterator n_it) {
 
       size_type next_uid = remove_node(*n_it);
       return NodeIterator(this, next_uid);
     }
+
 
     size_type remove_edge(const Node& a, const Node& b) {
 
@@ -232,6 +211,7 @@ class Graph {
       return 0; 
     };
   
+
     size_type remove_edge(const Edge& e) {
 
       assert (e.index() < e.graph_->num_edges());
@@ -255,25 +235,6 @@ class Graph {
       return e.index();
       }
 
-    void change_edge_uid(Edge e, size_type new_edge_uid) {
-
-      if (e.index() == new_edge_uid) 
-        return;
-
-      size_type old_edge_uid = e.index();
-
-      edges_[new_edge_uid] = edges_[old_edge_uid];
-      
-      std::replace(nodes_[e.node1().index()].adj_list.begin(), 
-                   nodes_[e.node1().index()].adj_list.end(), 
-                   old_edge_uid, new_edge_uid);
-
-      std::replace(nodes_[e.node2().index()].adj_list.begin(), 
-                   nodes_[e.node2().index()].adj_list.end(), 
-                   old_edge_uid, new_edge_uid);
-
-      return;
-    }
 
     edge_iterator remove_edge(edge_iterator e_it) {
     
@@ -908,6 +869,47 @@ class Graph {
   std::vector<double> rest_lengths;
 
   
+  void change_node_id(Node node, size_type new_node_index) {
+
+    size_type old_node_index = node.index();
+
+    if (old_node_index == new_node_index)
+      return;
+
+    for (auto i = node.edge_begin(); i != node.edge_end(); ++i) {
+       
+      if (edges_[(*i).index()].index_1 == old_node_index)
+        edges_[(*i).index()].index_1 = new_node_index;
+       
+      else if (edges_[(*i).index()].index_2 == old_node_index)
+        edges_[(*i).index()].index_2 = new_node_index;
+
+    }
+
+    nodes_[new_node_index] = nodes_[node.index()];
+       
+  }
+
+
+  void change_edge_uid(Edge e, size_type new_edge_uid) {
+
+    if (e.index() == new_edge_uid) 
+      return;
+
+    size_type old_edge_uid = e.index();
+
+    edges_[new_edge_uid] = edges_[old_edge_uid];
+      
+    std::replace(nodes_[e.node1().index()].adj_list.begin(), 
+                 nodes_[e.node1().index()].adj_list.end(), 
+                 old_edge_uid, new_edge_uid);
+
+    std::replace(nodes_[e.node2().index()].adj_list.begin(), 
+                 nodes_[e.node2().index()].adj_list.end(), 
+                 old_edge_uid, new_edge_uid);
+
+    return;
+  }
  /* // Inspiration for this came from lafstern.org/matt/col1.pdf
   template <class Vector, class T>
   void insert(Vector& v,  const T& elem) {
