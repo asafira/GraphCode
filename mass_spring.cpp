@@ -53,8 +53,8 @@ typedef typename GraphType::edge_type Edge;
  *           @a force must return a Point representing the force vector on Node
  *           at time @a t.
  */
-template <typename G, typename F>
-double symp_euler_step(G& g, double t, double dt, F force) {
+template <typename G, typename F, typename C>
+double symp_euler_step(G& g, double t, double dt, F force, C constraint) {
   // Compute the {n+1} node positions
   for (auto it = g.node_begin(); it != g.node_end(); ++it) {
     auto n = *it;
@@ -63,18 +63,121 @@ double symp_euler_step(G& g, double t, double dt, F force) {
     // x^{n+1} = x^{n} + v^{n} * dt
     n.position() += n.value().velocity * dt;
   }
+  
+  // Enforce constraints
+  constraint(g, t);
 
   // Compute the {n+1} node velocities
   for (auto it = g.node_begin(); it != g.node_end(); ++it) {
     auto n = *it;
     // v^{n+1} = v^{n} + F(x^{n+1},t) * dt / m
-    if (n.position() != Point(0,0,0) && n.position() != Point(1,0,0)) 
-      n.value().velocity += force(n, t) * (dt / n.value().mass);
+//    if (n.position() != Point(0,0,0) && n.position() != Point(1,0,0)) 
+    n.value().velocity += force(n, t) * (dt / n.value().mass);
+
   }
 
   return t + dt;
 }
 
+struct StickyPlaneCons {
+ 
+
+  StickyPlaneCons(Point coeffs, double offset)
+                  : coeffs_(coeffs), offset_(offset) {}
+
+  void operator()(GraphType& graph, double) {
+
+    for(auto it =  graph.node_begin(); it != graph.node_end(); ++it) {
+    
+      auto n = *it;
+      if (dot(n.position(), coeffs_) < offset_) {
+        n.position() = Point(n.position().x, n.position().y, offset_);
+        n.value().velocity = Point(n.value().velocity.x, n.value().velocity.y, 0);
+      } 
+    }
+  }
+
+  private:
+    Point coeffs_;
+    double offset_;
+};
+
+
+struct SphereCons {
+
+  SphereCons(Point center, double radius) : c(center), r(radius) {}
+
+  void operator()(GraphType& graph, double) {
+
+    for( auto it = graph.node_begin(); it != graph.node_end(); ++it) {
+    
+      auto n = *it;
+      if (norm(n.position() - c) < r) {
+
+        Point force_direc = (n.position() - c)/norm(n.position()-c);
+        n.position() = c + r*force_direc;
+        n.value().velocity -= dot(n.value().velocity, force_direc)*force_direc;
+      }
+    }
+  }
+
+  private:
+    Point c;
+    double r;
+};
+
+struct CuttingSphereCons {
+
+  CuttingSphereCons(Point center, double radius) : c(center), r(radius) {}
+
+  void operator()(GraphType& graph, double) {
+
+    auto it = graph.node_begin();
+    while(it != graph.node_end()) {
+
+      if (norm((*it).position() - c) < r)
+        it = graph.remove_node(it);
+
+      else
+        ++it;
+    }
+  }
+
+  private:
+    Point c;
+    double r;
+};
+
+struct NoCons {
+
+  void operator()(GraphType&, double) {return;}
+};
+ 
+
+template<typename C1 = NoCons, typename C2 = NoCons, typename C3 = NoCons>
+struct combined_cons {
+
+  combined_cons(C1 cons1, C2 cons2) : cons1_(cons1), cons2_(cons2) {
+  }
+
+  combined_cons(C1 cons1, C2 cons2, C3 cons3) 
+                       : cons1_(cons1), cons2_(cons2), cons3_(cons3) {
+  }
+
+  void operator()(GraphType& g, double t) {
+
+    cons1_(g,t);
+    cons2_(g,t);
+    cons3_(g,t);
+
+    return;
+  }
+
+  private:
+    C1 cons1_;
+    C2 cons2_;
+    C3 cons3_;
+};
 
 /** Force function object for HW2 #1. */
 struct Problem1Force {
@@ -162,7 +265,7 @@ struct NoForce {
   }
 };
 
-template<typename F1, typename F2, typename F3 = NoForce>
+template<typename F1, typename F2 = NoForce, typename F3 = NoForce>
 struct make_combined_force {
 
   F1 force1_;
@@ -253,10 +356,19 @@ int main(int argc, char** argv) {
   for (double t = t_start; t < t_end; t += dt) {
     //std::cout << "t = " << t << std::endl;
 
-    symp_euler_step(graph, t, dt, make_combined_force<GravityForce, MassSpringForce, DampingForce>(GravityForce(), MassSpringForce(), DampingForce()));
+    symp_euler_step(graph, t, dt, 
+                    make_combined_force<GravityForce, MassSpringForce, DampingForce>
+                    (GravityForce(), MassSpringForce(), DampingForce()),
+                    combined_cons<StickyPlaneCons, NoCons>
+                    (StickyPlaneCons(Point(0,0,1), -0.75), NoCons()));
 
-    // Update viewer with nodes' new positions
+    // Clear the viewer's nodes and edges 
+    viewer.clear();
+    node_map.clear();
+
+    // Update viewer with nodes' new positions 
     viewer.add_nodes(graph.node_begin(), graph.node_end(), node_map);
+    viewer.add_edges(graph.edge_begin(), graph.edge_end(), node_map);
     viewer.set_label(t);
 
     // These lines slow down the animation for small graphs, like grid0_*.
@@ -266,4 +378,4 @@ int main(int argc, char** argv) {
   }
 
   return 0;
-}
+}; 

@@ -175,24 +175,49 @@ class Graph {
       }
     };
 
-  
+    /* @brief Removes a node and and all edges connected to it from the graph.
+     * @param[in] the Node n to remove from this graph.
+     *
+     * @pre Node @a n is a valid node in the current graph.
+     *
+     * @post for any edge e in g_orig, if e.node1() == n || e.node2() == n,
+     *       e is not in g; else e is in the graph
+     * @post Node n is no longer in the graph; all other nodes are.
+     * @post Node indices may change; all iterators are invalid
+     *
+     * @param[out] returns the index of the node in Node n's place.
+     * (Useful for returning a valid node_iterator for removing node by an iterator)
+    */ 
     size_type remove_node (const Node& n) {
-  
+   
+      // Check that n is a valid node
       assert( n.index() < size());
-      // Remove edges connected with node
+      assert( Node(this, n.index()) == n);
+
+      // Remove edges connected with node, being careful to not use an iterator
       while(!(nodes_[n.index()].adj_list.empty()))
         remove_edge(Edge(this, nodes_[n.index()].adj_list[0]));
       
+      // Swtich the last node with the one we have 
       change_node_id(node(size() - 1), n.index());
       
+      // Remove the end node
       nodes_.pop_back();
  
+      // Return the index of the node that was placed in n's spot
       return n.index();
     }
     
-
+    /* @brief deletes the node that a node_iterator points to.
+     * 
+     * @pre n_it points to a valid node
+     * @post returns a node_iterator to the next node after the
+     *       new node is deleted 
+     * @post postconditions identical to remove_node(Node& n) with n = *n_it
+    */
     node_iterator remove_node(node_iterator n_it) {
 
+      // Implemented with other remove_node method
       size_type next_uid = remove_node(*n_it);
       return NodeIterator(this, next_uid);
     }
@@ -792,7 +817,7 @@ class Graph {
     typedef std::ptrdiff_t difference_type;
 
     /** Construct an invalid IncidentIterator. */
-    IncidentIterator() : node_(NULL), graph_(NULL){
+    IncidentIterator() : curr_node_index_(0), graph_(NULL){
     }
 
      /* @brief returns the value the iterator is pointing to.
@@ -801,10 +826,11 @@ class Graph {
       * graph_->num_edges()
       */
      Edge operator*() const {
-        assert ( curr_edge_index_ < node_->degree() );
+        assert ( curr_edge_index_ < graph_->node(curr_node_index_).degree() );
 
-        Edge curr_edge = Edge(graph_, graph_->nodes_[node_->index()].adj_list[curr_edge_index_]);
-        if (curr_edge.node1() != *node_)
+        Edge curr_edge = Edge(graph_, 
+                              graph_->nodes_[curr_node_index_].adj_list[curr_edge_index_]);
+        if (curr_edge.node1().index() != curr_node_index_)
           curr_edge.flip_nodes();
         return curr_edge;
      }
@@ -812,8 +838,8 @@ class Graph {
      // @brief Returns an iterator to the next edge
      incident_iterator& operator++() {
        curr_edge_index_++; 
-       if (curr_edge_index_ >= node_->degree())  
-         curr_edge_index_ = node_->degree();
+       if (curr_edge_index_ >= graph_->node(curr_node_index_).degree())  
+         curr_edge_index_ = graph_->node(curr_node_index_).degree();
 
        return *this;
      }
@@ -821,7 +847,7 @@ class Graph {
      // @brief Checks if graph, nodes, and edge matches for given iterators
      bool operator==(const incident_iterator& other_iter) const {
        if (graph_ == other_iter.graph_)
-          if(node_ == other_iter.node_)
+          if(curr_node_index_ == other_iter.curr_node_index_)
             if (curr_edge_index_ == other_iter.curr_edge_index_)
               return true;
      
@@ -836,18 +862,18 @@ class Graph {
      * @ pre 0 <= index <= node.degree()
      */
     IncidentIterator(const Node* node, size_type index) 
-      : node_(const_cast<Node*>(node)) {
+      : curr_node_index_(node->index()) {
       
-      graph_ = const_cast<Graph*>(node_->graph_);
+      graph_ = const_cast<Graph*>(node->graph_);
 
-      assert( index <= node_->degree() );
+      assert( index <= node->degree() );
  
       curr_edge_index_ = index;
  
     }
 
     Graph* graph_;
-    Node* node_;
+    size_type curr_node_index_;
     size_type curr_edge_index_;
   };
 
@@ -866,16 +892,30 @@ class Graph {
     }
   };
 
-  std::vector<double> rest_lengths;
+  // This is here to make clear how I implemented Problem 1, keeping a vector of lengths for the edges
+  // std::vector<double> rest_lengths;
 
-  
+
+  /* @brief Changes the node of node to a new id
+   *
+   * @pre Node(this, new_node_index) must have no edges connected to it
+   * @pre Node node must be a valid node
+   * @post node.index() == new_node_index and all edges will be updated 
+   * to reflect the index change.
+   *
+   */
   void change_node_id(Node node, size_type new_node_index) {
 
-    size_type old_node_index = node.index();
+    // Check preconditions
+    assert (nodes_[new_node_index].adj_list.size() == 0);
+    assert (node == Node(this, node.index()));
 
+    // Check if node has the right index already
+    size_type old_node_index = node.index();
     if (old_node_index == new_node_index)
       return;
 
+    // Change the edges in the adjacency list to be refering to the new node index
     for (auto i = node.edge_begin(); i != node.edge_end(); ++i) {
        
       if (edges_[(*i).index()].index_1 == old_node_index)
@@ -886,6 +926,7 @@ class Graph {
 
     }
 
+    // Switch the nodes
     nodes_[new_node_index] = nodes_[node.index()];
        
   }
