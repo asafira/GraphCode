@@ -223,6 +223,10 @@ class Graph {
     }
 
 
+    /* @brief Removes the edge that connects a and b from the graph 
+              It is implemented through the remove_edge(Edge e) method,
+              with the same output.
+     */
     size_type remove_edge(const Node& a, const Node& b) {
 
       for (incident_iterator it = a.edge_begin(); it != a.edge_end(); ++it) {
@@ -236,11 +240,19 @@ class Graph {
       return 0; 
     };
   
-
+    /* @brief removes the edge e from the graph.
+     * @param[in] an Edge e.
+     * @pre Edge e must be a valid edge in the graph
+     * @post Iterators are invalid
+     * @post Edge e is removed from the graph
+     */
     size_type remove_edge(const Edge& e) {
 
+      // Checks that it could be a valid edge
       assert (e.index() < e.graph_->num_edges());
       
+      // Removes edge e from the adjacency lists of each of its nodes
+      // Uses the erase-remove idiom.
       nodes_[e.node1().index()].adj_list.erase(std::remove(
                   nodes_[e.node1().index()].adj_list.begin(), 
                   nodes_[e.node1().index()].adj_list.end(), e.index()),
@@ -252,15 +264,20 @@ class Graph {
                   nodes_[e.node2().index()].adj_list.end());
       
 
+      // Changes the uid of the current last endge to the uid of the current edge
       change_edge_uid(Edge(this, num_edges()-1), e.index());
 
-     
+      // Remove the last edge now
       edges_.pop_back();
 
+      // Return the current edge index, now with a new edge in it.
       return e.index();
       }
 
+    /* @brief removes the edge that @a e_it points to. Returns an edge_iterator
+              to the next valid node.
 
+     */
     edge_iterator remove_edge(edge_iterator e_it) {
     
       size_type new_uid = remove_edge(*e_it);
@@ -931,16 +948,27 @@ class Graph {
        
   }
 
+  /* @brief changes the uid of the edge e with new_edge_uid.
+     @param[in] Edge e is a valid edge in the graph
+     @param[in] new_edge_uid is the new uid for Edge e. It must be
+                such that 0 <= new_edge_uid < graph.num_edges();
+     @post Edge e will have e.index() == new_edge_uid
 
+   */
   void change_edge_uid(Edge e, size_type new_edge_uid) {
 
+    // Checks if there is no work to be done
     if (e.index() == new_edge_uid) 
       return;
 
+    // Setting variable for code clarity
     size_type old_edge_uid = e.index();
 
+    // set the new uid
     edges_[new_edge_uid] = edges_[old_edge_uid];
       
+
+    // Replace the uids in the node adjacency lists
     std::replace(nodes_[e.node1().index()].adj_list.begin(), 
                  nodes_[e.node1().index()].adj_list.end(), 
                  old_edge_uid, new_edge_uid);

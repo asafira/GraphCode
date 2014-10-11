@@ -33,7 +33,6 @@ struct EdgeData {
   double length;
 };
 
-// HW2 #1 YOUR CODE HERE
 // Define your Graph type
 typedef Graph<NodeData, EdgeData> GraphType;
 typedef typename GraphType::node_type Node;
@@ -53,7 +52,14 @@ typedef typename GraphType::edge_type Edge;
  *           @a force must return a Point representing the force vector on Node
  *           at time @a t.
  */
-template <typename G, typename F, typename C>
+
+// NoCons is the default (or null) constraint that does not constrain the points in graph.
+struct NoCons {
+
+  void operator()(GraphType&, double) {return;}
+};
+
+template <typename G, typename F, typename C = NoCons>
 double symp_euler_step(G& g, double t, double dt, F force, C constraint) {
   // Compute the {n+1} node positions
   for (auto it = g.node_begin(); it != g.node_end(); ++it) {
@@ -79,19 +85,43 @@ double symp_euler_step(G& g, double t, double dt, F force, C constraint) {
   return t + dt;
 }
 
+/* @brief StickyPlaneCons is a planar constraint on a set of nodes.
+   @param[in] @a coeffs is a Point object describing the coefficients of a plane
+              in standard form.
+   @param[in] @a offset is the Plane's offset from the origin
+   See operator() description in struct for usage info
+*/
 struct StickyPlaneCons {
  
 
   StickyPlaneCons(Point coeffs, double offset)
                   : coeffs_(coeffs), offset_(offset) {}
 
+  /* @brief Reinforces the positions of nodes in the graph g stay on one side of the 
+            plane given by dot(Point(x,y,z), coeffs_) - offset_ = 0 
+ 
+     @param[in] Graph g is the graph to 
+   
+     @pre plane must pass through the z axis
+ 
+     @post nodes in graph g that have passed the plane described by dot(n.position(),
+           coeffs_) - offset_ = 0 will have their positions reset to the position on the 
+           plane with correct z coordinate
+
+
+   */
   void operator()(GraphType& graph, double) {
 
     for(auto it =  graph.node_begin(); it != graph.node_end(); ++it) {
     
       auto n = *it;
       if (dot(n.position(), coeffs_) < offset_) {
-        n.position() = Point(n.position().x, n.position().y, offset_);
+
+        // Finds the point on plane closest to n.position()
+        Point point_on_plane = Point(0,0,offset_/coeffs_.z);
+        Point v = n.position() - point_on_plane;
+        double dist = dot(v, coeffs_)/norm(coeffs_); 
+        n.position() += -1.0 * dist * coeffs_/norm(coeffs_);
         n.value().velocity = Point(n.value().velocity.x, n.value().velocity.y, 0);
       } 
     }
@@ -102,11 +132,26 @@ struct StickyPlaneCons {
     double offset_;
 };
 
+/* @brief SphereCons is a functor that constrains a graph g to only contain points outside of a 
+          sphere centered at @a center and with radius @a r. It moves all within the sphere 
+          to the closest points on the sphere.
 
+   @param[in] Point center defines the center of the sphere
+   @param[in] double r defines the radius of the sphere
+
+ */
 struct SphereCons {
 
   SphereCons(Point center, double radius) : c(center), r(radius) {}
 
+  /* @brief the operator() method will take in a graph and the time and impose
+            the sphere constraint
+
+     @post ALl nodes in graph with positions that were outside or on of the sphere 
+           will be unmodified,
+     @post All nodes in the graph within the sphere will move the point on the sphere that is closest
+           to its position
+   */
   void operator()(GraphType& graph, double) {
 
     for( auto it = graph.node_begin(); it != graph.node_end(); ++it) {
@@ -126,6 +171,8 @@ struct SphereCons {
     double r;
 };
 
+
+// Similar to SphereCons, except that positions within the sphere will have their nodes deleted
 struct CuttingSphereCons {
 
   CuttingSphereCons(Point center, double radius) : c(center), r(radius) {}
@@ -148,15 +195,17 @@ struct CuttingSphereCons {
     double r;
 };
 
-struct NoCons {
 
-  void operator()(GraphType&, double) {return;}
-};
  
-
+/* Combined_cons combines the constraints in the graph */
 template<typename C1 = NoCons, typename C2 = NoCons, typename C3 = NoCons>
 struct combined_cons {
 
+  // Has constructors for 1, 2, or 3 constraints
+
+  combined_cons(C1 cons1) : cons1_(cons1) {
+  }
+  
   combined_cons(C1 cons1, C2 cons2) : cons1_(cons1), cons2_(cons2) {
   }
 
@@ -164,6 +213,7 @@ struct combined_cons {
                        : cons1_(cons1), cons2_(cons2), cons3_(cons3) {
   }
 
+  //performs the constraints sequentially
   void operator()(GraphType& g, double t) {
 
     cons1_(g,t);
@@ -179,6 +229,8 @@ struct combined_cons {
     C3 cons3_;
 };
 
+
+
 /** Force function object for HW2 #1. */
 struct Problem1Force {
   /** Return the force being applied to @a n at time @a t.
@@ -186,6 +238,7 @@ struct Problem1Force {
    * For HW2 #1, this is a combination of mass-spring force and gravity,
    * except that points at (0, 0, 0) and (1, 0, 0) never move. We can
    * model that by returning a zero-valued force. */
+
   Point operator()(Node n, double) {
     
     if (n.position() == Point(0,0,0) || n.position() == Point(1,0,0)) {
@@ -214,6 +267,16 @@ struct Problem1Force {
   }
 };
 
+
+/* @brief GravityForce takes in a node n and a time and returns the force on that node
+          given a defined mass in its value() struct
+
+   @param[in] node n is a valid node
+   @param[in] t is the current timestep
+   @pre n.value() must contain a parameter mass of type double.
+
+   @post returns the 3D Point that is the gravitational force on that node.
+*/
 struct GravityForce {
   
   Point operator()(Node n, double) {
@@ -225,7 +288,15 @@ struct GravityForce {
 };
 
 
+/* @brief MassSpringForce returns the spring force on a node in the graph
 
+   @param[in] node n is a node in the graph
+   @param[in] time t is the current timestep
+   @param[out] Point that is the spring force on the node
+   
+   @pre All edges in the graph connected to n have had their rest lengths 
+        put into a struct variable length stored in edge.value()
+*/
 struct MassSpringForce {
   
   Point operator()(Node n, double) {
@@ -245,6 +316,14 @@ struct MassSpringForce {
 };
 
 
+
+/* @brief DampingForce returns the damping force on a node in the graph
+
+   @param[in] node n is a node in the graph
+   @param[in] time t is the current timestep
+   @param[out] Point that is the damping force on the node
+   
+*/
 struct DampingForce {
   
   Point operator()(Node n, double) {
@@ -256,7 +335,7 @@ struct DampingForce {
   }
 };
 
-
+/* @brief The null force to act as the default force in make_combined_force */
 struct NoForce {
 
   Point operator()(Node , double) {
@@ -265,6 +344,10 @@ struct NoForce {
   }
 };
 
+/* @brief Combines forces in its arguements (up to 3) to return a single total force
+          on a node
+
+*/
 template<typename F1, typename F2 = NoForce, typename F3 = NoForce>
 struct make_combined_force {
 
@@ -272,6 +355,9 @@ struct make_combined_force {
   F2 force2_;
   F3 force3_;
 
+  make_combined_force(F1 force1) : force1_(force1) {
+  }
+  
   make_combined_force(F1 force1, F2 force2) : force1_(force1), force2_(force2) {
   }
 
@@ -279,6 +365,7 @@ struct make_combined_force {
                        : force1_(force1), force2_(force2), force3_(force3) {
   }
 
+  // Return the sum of the forces
   Point operator()(Node n, double t) {
 
     return (force1_(n, t) + force2_(n, t) + force3_(n, t));
@@ -321,8 +408,6 @@ int main(int argc, char** argv) {
     }
   }
 
-  // HW2 #1 YOUR CODE HERE
-  // Set initial conditions for your nodes, if necessary.
   // Construct Forces/Constraints
 
   double mass = 1.0/ (double) graph.num_nodes();
@@ -356,6 +441,7 @@ int main(int argc, char** argv) {
   for (double t = t_start; t < t_end; t += dt) {
     //std::cout << "t = " << t << std::endl;
 
+    // Note that we need to include the types of forces for the combined functors
     symp_euler_step(graph, t, dt, 
                     make_combined_force<GravityForce, MassSpringForce, DampingForce>
                     (GravityForce(), MassSpringForce(), DampingForce()),
