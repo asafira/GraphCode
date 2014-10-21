@@ -497,12 +497,12 @@ class Graph {
 
       return Node(graph_, index_2);      // Invalid Node
     }
-/*
+
     double length() const {
 
-      return graph_->rest_lengths[edge_index_]; 
+      return norm(node1().position() - node2().position()); 
     }
-*/
+
 
     // Return value of current node
     edge_value_type& value() {

@@ -13,17 +13,19 @@
 
 #include "CS207/SDLViewer.hpp"
 #include "CS207/Util.hpp"
+#include <boost/numeric/mtl/mtl.hpp>
+#include <boost/numeric/itl/itl.hpp>
 
 #include "Graph.hpp"
 #include "Point.hpp"
 #include "BoundingBox.hpp"
-
+#include <fstream>
 
 // HW3: YOUR CODE HERE
 // Define a GraphSymmetricMatrix that maps
 // your Graph concept to MTL's Matrix concept. This shouldn't need to copy or
 // modify Graph at all!
-typedef Graph<char,char> GraphType;  //<  DUMMY Placeholder
+typedef Graph<bool,bool> GraphType;  //<  DUMMY Placeholder
 
 /** Remove all the nodes in graph @a g whose posiiton is contained within
  * BoundingBox @a bb
@@ -31,11 +33,124 @@ typedef Graph<char,char> GraphType;  //<  DUMMY Placeholder
  *        not bb.contains(g.node(i).position())
  */
 void remove_box(GraphType& g, const BoundingBox& bb) {
-  // HW3: YOUR CODE HERE
-  (void) g; (void) bb;   //< Quiet compiler
+  
+  for (auto node_iter = g.node_begin(); node_iter != g.node_end(); ++node_iter) {
+
+    if (bb.contains((*node_iter).position())) {
+
+      node_iter = g.remove_node(node_iter);
+    }
+  }
   return;
 }
 
+class GraphSymmetricMatrix {
+public:
+
+  GraphSymmetricMatrix(const GraphType* g) : matrix_params_({g->num_nodes(), g->num_nodes()}), g_(g){};
+
+  template <typename VectorIn, typename VectorOut, typename Assign>
+  void mult( const VectorIn& v, VectorOut& w, Assign) const {
+
+    std::size_t node_num = 0;
+
+    double curr_tot;
+    while (node_num < g_->num_nodes()) {
+      curr_tot = 0.0;
+      for (auto adj_iter = g_->node(node_num).edge_begin(); adj_iter != g_->node(node_num).edge_end(); ++adj_iter) {
+        
+        curr_tot += ((double) v[(*adj_iter).node2().index()])*a_ij(node_num, (*adj_iter).node2().index());
+      }
+
+      Assign::apply(w[node_num], curr_tot);
+      ++node_num; 
+    }
+  }
+  
+  template<typename Vector>
+  mtl::vec::mat_cvec_multiplier<GraphSymmetricMatrix, Vector>
+  operator*(const Vector& v) const {
+    return mtl::vec::mat_cvec_multiplier
+                           <GraphSymmetricMatrix, Vector>(*this, v);
+  }
+
+  std::size_t num_rows() const {
+    return matrix_params_.num_rows;
+  }
+
+  std::size_t num_cols() const {
+    return matrix_params_.num_cols;
+  }
+
+  private:
+
+  int l_ij(std::size_t i, std::size_t j) const {
+
+    if (i == j)
+      return -1 * g_->node(i).degree();
+
+    else if (g_->has_edge(g_->node(i), g_->node(j)))
+      return 1;
+
+    else
+      return 0;
+  } 
+
+  int a_ij(std::size_t i, std::size_t j) const {
+
+    if (i == j && g_->node(i).value())
+      return 1;
+    else if (g_->node(i).value() && g_->node(j).value())
+      return 0;
+    else
+      return l_ij(i,j);
+  } 
+
+  struct matrix_params {
+
+    std::size_t num_rows;
+    std::size_t num_cols;
+  };
+
+  matrix_params matrix_params_;
+  const GraphType* g_;
+};
+
+
+  namespace mtl {
+    namespace ashape {
+
+
+      template<>
+      struct ashape_aux<GraphSymmetricMatrix> {
+        typedef nonscal type;
+      };
+    }
+
+    template <>
+    struct Collection<GraphSymmetricMatrix> {
+      typedef double value_type;
+      typedef unsigned size_type;
+    };
+  }
+
+/*  
+  template <typename Vector>
+  Vector operator*(const Vector& x) const {
+    return x;
+  }
+*/
+  inline std::size_t size(const GraphSymmetricMatrix& A) {
+    return A.num_rows()*A.num_cols();
+  }
+
+  inline std::size_t num_rows(const GraphSymmetricMatrix& A) {
+    return A.num_rows();
+  }
+
+  inline std::size_t num_cols(const GraphSymmetricMatrix& A) {
+    return A.num_cols();
+  }
 
 
 int main(int argc, char** argv)
@@ -82,6 +197,68 @@ int main(int argc, char** argv)
   // Define b using the graph, f, and g.
   // Construct the GraphSymmetricMatrix A using the graph
   // Solve Au = b using MTL.
+
+  Point p_p = Point({0.6, 0.6, 0});
+  Point p_m = Point({-0.6, -0.6, 0});
+
+  Point bb_p1 = Point({-0.6, -0.2, -1.0});
+  Point bb_p2 = Point({0.6, 0.2, 1});
+  BoundingBox bb = BoundingBox(bb_p1, bb_p2);
+
+  for (auto node_iter = graph.node_begin(); node_iter != graph.node_end(); ++node_iter) {
+
+    auto node = *node_iter;
+
+    if (norm_inf(node.position()) == 1)
+      node.value() = true;
+
+    else if (norm_inf(node.position() - p_p) < 0.2 || norm_inf(node.position() - p_m) < 0.2)
+      node.value() = true;
+ 
+    else if (bb.contains(node.position()))
+      node.value() = true;
+
+    else
+      node.value() = false;
+  }
+
+  mtl::dense_vector<double> b(graph.size());
+  
+  
+  for (auto node_iter = graph.node_begin(); node_iter != graph.node_end(); ++node_iter) {
+
+    auto node = *node_iter;
+
+    if (norm_inf(node.position()) == 1)
+      b[node.index()] = 0;
+
+    else if (norm_inf(node.position() - p_p) < 0.2 || norm_inf(node.position() - p_m) < 0.2)
+      b[node.index()] = -0.2;
+ 
+    else if (bb.contains(node.position()))
+      b[node.index()] = 1;
+
+    else {
+        
+      b[node.index()] = h*h*5*std::cos(norm_1(node.position()));
+      for (auto inc_iter = node.edge_begin(); inc_iter != node.edge_end(); ++inc_iter) {
+
+        if (norm_inf(node.position() - p_p) < 0.2 || norm_inf(node.position() - p_m) < 0.2)
+          b[node.index()] -= -0.2;
+ 
+        if (bb.contains(node.position()))
+          b[node.index()] -= 1;
+      }
+    }
+  }
+
+  GraphSymmetricMatrix A = GraphSymmetricMatrix(&graph);
+  itl::pc::identity<GraphSymmetricMatrix> pre_con(A);
+  mtl::dense_vector<double> x(graph.size(), 1.0);
+
+  itl::noisy_iteration<double> iter(b, 500, 1.e-6);
+
+  itl::cg(A, x, b, pre_con, iter);
 
   return 0;
 }
