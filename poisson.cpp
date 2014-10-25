@@ -52,18 +52,21 @@ public:
   template <typename VectorIn, typename VectorOut, typename Assign>
   void mult( const VectorIn& v, VectorOut& w, Assign) const {
 
-    std::size_t node_num = 0;
 
     double curr_tot;
-    while (node_num < g_->num_nodes()) {
+    for (auto node_iter = g_->node_begin(); node_iter != g_->node_end(); ++node_iter){
       curr_tot = 0.0;
-      for (auto adj_iter = g_->node(node_num).edge_begin(); adj_iter != g_->node(node_num).edge_end(); ++adj_iter) {
+      auto node = *node_iter;
+      //std::cout << "node: " << node_num << ", node degree: " << g_->node(node_num).degree() << "\n";
+      curr_tot += v[node.index()] * a_ij(node.index(), node.index());
+
+      for (auto adj_iter = node.edge_begin(); adj_iter != node.edge_end(); ++adj_iter) {
         
-        curr_tot += ((double) v[(*adj_iter).node2().index()])*a_ij(node_num, (*adj_iter).node2().index());
+        curr_tot += (v[(*adj_iter).node2().index()])*a_ij(node.index(), (*adj_iter).node2().index());
+        //std::cout << "Curr node: " << node_num << ", neighbor: " << (*adj_iter).node2().index() << "\n";
       }
 
-      Assign::apply(w[node_num], curr_tot);
-      ++node_num; 
+      Assign::apply(w[node.index()], curr_tot);
     }
   }
   
@@ -84,24 +87,24 @@ public:
 
   private:
 
-  int l_ij(std::size_t i, std::size_t j) const {
+  double l_ij(std::size_t i, std::size_t j) const {
 
     if (i == j)
-      return -1 * g_->node(i).degree();
+      return -1.0 * (double) g_->node(i).degree();
 
     else if (g_->has_edge(g_->node(i), g_->node(j)))
-      return 1;
+      return 1.0;
 
     else
-      return 0;
+      return 0.0;
   } 
 
-  int a_ij(std::size_t i, std::size_t j) const {
+  double a_ij(std::size_t i, std::size_t j) const {
 
     if (i == j && g_->node(i).value())
-      return 1;
-    else if (g_->node(i).value() && g_->node(j).value())
-      return 0;
+      return 1.0;
+    else if (g_->node(i).value() || g_->node(j).value())
+      return 0.0;
     else
       return l_ij(i,j);
   } 
@@ -153,8 +156,56 @@ public:
   }
 
 
-int main(int argc, char** argv)
-{
+
+template <class Real, class OStream = std::ostream>
+  class visual_iteration : public itl::cyclic_iteration<Real> 
+  {
+      typedef itl::cyclic_iteration<Real> super;
+      typedef visual_iteration self;
+
+    public:
+  
+      template <class Vector>
+      visual_iteration(const Vector& r0, int max_iter_, Real tol_, GraphType* graph_, 
+                               Real atol_ = Real(0), int cycle_ = 100, OStream& out = std::cout)
+        : super(r0, max_iter_, tol_, atol_, cycle_, out), graph(graph_) {
+
+        mtl::dense_vector<double> u(graph->size(), 0.0);
+        viewer.launch();
+        auto node_map = viewer.empty_node_map(*graph);
+       
+        viewer.add_nodes(graph->node_begin(), graph->node_end(), CS207::NodeColor(r0), CS207::VectorZPosition(r0), node_map);
+        viewer.add_edges(graph->edge_begin(), graph->edge_end(), node_map);
+        viewer.center_view();
+      }
+
+      bool finished() { return super::finished(); }
+
+      template <typename T>
+      bool finished(const T& r) 
+      {
+         bool ret= super::finished(r);
+         viewer.clear(); 
+         auto node_map = viewer.empty_node_map(*graph);
+
+         //mtl::dense_vector<double> u(graph->size(), 0.0);
+         //u[0] = 1.0;
+         viewer.add_nodes(graph->node_begin(), graph->node_end(), CS207::NodeColor(r), CS207::VectorZPosition(r), node_map);
+         viewer.add_edges(graph->edge_begin(), graph->edge_end(), node_map);
+         viewer.center_view();
+         viewer.set_label(this->i);  
+          
+         return ret;
+      }
+
+    protected:
+      GraphType* graph; 
+      CS207::SDLViewer viewer;
+      //mtl::dense_vector<double> u;
+
+  };
+int main(int argc, char** argv) {
+
   // Check arguments
   if (argc < 2) {
     std::cerr << "Usage: " << argv[0] << " NODES_FILE EDGES_FILE\n";
@@ -198,8 +249,10 @@ int main(int argc, char** argv)
   // Construct the GraphSymmetricMatrix A using the graph
   // Solve Au = b using MTL.
 
-  Point p_p = Point({0.6, 0.6, 0});
-  Point p_m = Point({-0.6, -0.6, 0});
+  Point p_pp = Point({0.6, 0.6, 0});
+  Point p_mm = Point({-0.6, -0.6, 0});
+  Point p_pm = Point({0.6, -0.6, 0});
+  Point p_mp = Point({-0.6, 0.6, 0});
 
   Point bb_p1 = Point({-0.6, -0.2, -1.0});
   Point bb_p2 = Point({0.6, 0.2, 1});
@@ -212,7 +265,10 @@ int main(int argc, char** argv)
     if (norm_inf(node.position()) == 1)
       node.value() = true;
 
-    else if (norm_inf(node.position() - p_p) < 0.2 || norm_inf(node.position() - p_m) < 0.2)
+    else if (norm_inf(node.position() - p_pp) < 0.2 || norm_inf(node.position() - p_mm) < 0.2)
+      node.value() = true;
+ 
+    else if (norm_inf(node.position() - p_pm) < 0.2 || norm_inf(node.position() - p_mp) < 0.2)
       node.value() = true;
  
     else if (bb.contains(node.position()))
@@ -232,7 +288,10 @@ int main(int argc, char** argv)
     if (norm_inf(node.position()) == 1)
       b[node.index()] = 0;
 
-    else if (norm_inf(node.position() - p_p) < 0.2 || norm_inf(node.position() - p_m) < 0.2)
+    else if (norm_inf(node.position() - p_pp) < 0.2 || norm_inf(node.position() - p_mm) < 0.2)
+      b[node.index()] = -0.2;
+ 
+    else if (norm_inf(node.position() - p_pm) < 0.2 || norm_inf(node.position() - p_mp) < 0.2)
       b[node.index()] = -0.2;
  
     else if (bb.contains(node.position()))
@@ -243,22 +302,36 @@ int main(int argc, char** argv)
       b[node.index()] = h*h*5*std::cos(norm_1(node.position()));
       for (auto inc_iter = node.edge_begin(); inc_iter != node.edge_end(); ++inc_iter) {
 
-        if (norm_inf(node.position() - p_p) < 0.2 || norm_inf(node.position() - p_m) < 0.2)
+        auto edge = *inc_iter;
+        if (norm_inf(edge.node2().position() - p_pp) < 0.2 || norm_inf(edge.node2().position() - p_mm) < 0.2)
           b[node.index()] -= -0.2;
  
-        if (bb.contains(node.position()))
+        else if (norm_inf(edge.node2().position() - p_pm) < 0.2 || norm_inf(edge.node2().position() - p_mp) < 0.2)
+          b[node.index()] -= -0.2;
+        
+        else if (bb.contains(edge.node2().position()))
           b[node.index()] -= 1;
+
       }
     }
   }
 
   GraphSymmetricMatrix A = GraphSymmetricMatrix(&graph);
-  itl::pc::identity<GraphSymmetricMatrix> pre_con(A);
-  mtl::dense_vector<double> x(graph.size(), 1.0);
 
-  itl::noisy_iteration<double> iter(b, 500, 1.e-6);
+  visual_iteration<double> iter(b, 500, 1.e-10, &graph, 0, 50);
 
-  itl::cg(A, x, b, pre_con, iter);
+  mtl::dense_vector<double> u(graph.size(), 0.0);
 
+  itl::cg(A, u, b, iter);
+
+  /*
+  CS207::SDLViewer viewer;
+  viewer.launch();
+  auto node_map = viewer.empty_node_map(graph);
+ 
+  viewer.add_nodes(graph.node_begin(), graph.node_end(), CS207::NodeColor(u), CS207::VectorZPosition(u), node_map);
+  viewer.add_edges(graph.edge_begin(), graph.edge_end(), node_map);
+  viewer.center_view();
+*/
   return 0;
 }

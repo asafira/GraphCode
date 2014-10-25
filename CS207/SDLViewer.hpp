@@ -24,6 +24,7 @@
 #include "Point.hpp"
 #include "Color.hpp"
 
+#include <boost/numeric/mtl/mtl.hpp>
 
 namespace CS207 {
 
@@ -59,11 +60,51 @@ struct DazzlingColor {
   }
 };
 
+
+struct HW3Color {
+
+  template <typename NODE>
+  Color operator()(const NODE& node) {
+    if (node.value() == true)
+      return Color(0.5);
+
+    else
+      return Color(1);
+  }
+};
+
+struct NodeColor {
+  
+  mtl::dense_vector<double> u_;
+  double min;
+  double max;
+  NodeColor(mtl::dense_vector<double> u) : u_(u) {
+    max = mtl::max(u_);
+    min = mtl::min(u_);
+  };
+  template <typename NODE>
+  Color operator()(const NODE& node) {
+
+    return Color::make_heat((u_[node.index()]-min)/(max-min));
+  }
+
+}; 
+
 // A default position functor that returns node.position() for any node
 struct DefaultPosition {
   template <typename NODE>
   Point operator()(const NODE& node) {
     return node.position();
+  }
+};
+
+struct VectorZPosition {
+
+  mtl::dense_vector<double> u_;
+  VectorZPosition(mtl::dense_vector<double> u) : u_(u) {}
+  template<typename NODE>
+  Point operator()(const NODE& node) {
+    return (Point(node.position().x, node.position().y, u_[node.index()]));
   }
 };
 
