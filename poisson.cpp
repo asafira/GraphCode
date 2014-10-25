@@ -21,10 +21,6 @@
 #include "BoundingBox.hpp"
 #include <fstream>
 
-// HW3: YOUR CODE HERE
-// Define a GraphSymmetricMatrix that maps
-// your Graph concept to MTL's Matrix concept. This shouldn't need to copy or
-// modify Graph at all!
 typedef Graph<bool,bool> GraphType;  //<  DUMMY Placeholder
 
 /** Remove all the nodes in graph @a g whose posiiton is contained within
@@ -57,13 +53,11 @@ public:
     for (auto node_iter = g_->node_begin(); node_iter != g_->node_end(); ++node_iter){
       curr_tot = 0.0;
       auto node = *node_iter;
-      //std::cout << "node: " << node_num << ", node degree: " << g_->node(node_num).degree() << "\n";
       curr_tot += v[node.index()] * a_ij(node.index(), node.index());
 
       for (auto adj_iter = node.edge_begin(); adj_iter != node.edge_end(); ++adj_iter) {
         
         curr_tot += (v[(*adj_iter).node2().index()])*a_ij(node.index(), (*adj_iter).node2().index());
-        //std::cout << "Curr node: " << node_num << ", neighbor: " << (*adj_iter).node2().index() << "\n";
       }
 
       Assign::apply(w[node.index()], curr_tot);
@@ -137,12 +131,6 @@ public:
     };
   }
 
-/*  
-  template <typename Vector>
-  Vector operator*(const Vector& x) const {
-    return x;
-  }
-*/
   inline std::size_t size(const GraphSymmetricMatrix& A) {
     return A.num_rows()*A.num_cols();
   }
@@ -167,16 +155,17 @@ template <class Real, class OStream = std::ostream>
   
       template <class Vector>
       visual_iteration(const Vector& r0, int max_iter_, Real tol_, GraphType* graph_, 
-                               Real atol_ = Real(0), int cycle_ = 100, OStream& out = std::cout)
-        : super(r0, max_iter_, tol_, atol_, cycle_, out), graph(graph_) {
+                       mtl::dense_vector<double>* u_, Real atol_ = Real(0), 
+                       int cycle_ = 100, OStream& out = std::cout)
+        : super(r0, max_iter_, tol_, atol_, cycle_, out), graph(graph_), u(u_) {
 
-        mtl::dense_vector<double> u(graph->size(), 0.0);
         viewer.launch();
         auto node_map = viewer.empty_node_map(*graph);
        
-        viewer.add_nodes(graph->node_begin(), graph->node_end(), CS207::NodeColor(r0), CS207::VectorZPosition(r0), node_map);
+        viewer.add_nodes(graph->node_begin(), graph->node_end(), CS207::NodeColor(*u), CS207::VectorZPosition(*u), node_map);
         viewer.add_edges(graph->edge_begin(), graph->edge_end(), node_map);
         viewer.center_view();
+        CS207::sleep(0.1);
       }
 
       bool finished() { return super::finished(); }
@@ -188,20 +177,18 @@ template <class Real, class OStream = std::ostream>
          viewer.clear(); 
          auto node_map = viewer.empty_node_map(*graph);
 
-         //mtl::dense_vector<double> u(graph->size(), 0.0);
-         //u[0] = 1.0;
-         viewer.add_nodes(graph->node_begin(), graph->node_end(), CS207::NodeColor(r), CS207::VectorZPosition(r), node_map);
+         viewer.add_nodes(graph->node_begin(), graph->node_end(), CS207::NodeColor(*u), CS207::VectorZPosition(*u), node_map);
          viewer.add_edges(graph->edge_begin(), graph->edge_end(), node_map);
          viewer.center_view();
          viewer.set_label(this->i);  
-          
+         CS207::sleep(0.1);
          return ret;
       }
 
     protected:
       GraphType* graph; 
       CS207::SDLViewer viewer;
-      //mtl::dense_vector<double> u;
+      mtl::dense_vector<double>* u;
 
   };
 int main(int argc, char** argv) {
@@ -243,11 +230,6 @@ int main(int argc, char** argv) {
   remove_box(graph, BoundingBox(Point(-0.8+h, 0.4+h,-1), Point(-0.4-h, 0.8-h,1)));
   remove_box(graph, BoundingBox(Point( 0.4+h, 0.4+h,-1), Point( 0.8-h, 0.8-h,1)));
   remove_box(graph, BoundingBox(Point(-0.6+h,-0.2+h,-1), Point( 0.6-h, 0.2-h,1)));
-
-  // HW3: YOUR CODE HERE
-  // Define b using the graph, f, and g.
-  // Construct the GraphSymmetricMatrix A using the graph
-  // Solve Au = b using MTL.
 
   Point p_pp = Point({0.6, 0.6, 0});
   Point p_mm = Point({-0.6, -0.6, 0});
@@ -318,20 +300,11 @@ int main(int argc, char** argv) {
 
   GraphSymmetricMatrix A = GraphSymmetricMatrix(&graph);
 
-  visual_iteration<double> iter(b, 500, 1.e-10, &graph, 0, 50);
 
   mtl::dense_vector<double> u(graph.size(), 0.0);
 
+  visual_iteration<double> iter(b, 500, 1.e-10, &graph, &u, 0, 50);
   itl::cg(A, u, b, iter);
 
-  /*
-  CS207::SDLViewer viewer;
-  viewer.launch();
-  auto node_map = viewer.empty_node_map(graph);
- 
-  viewer.add_nodes(graph.node_begin(), graph.node_end(), CS207::NodeColor(u), CS207::VectorZPosition(u), node_map);
-  viewer.add_edges(graph.edge_begin(), graph.edge_end(), node_map);
-  viewer.center_view();
-*/
   return 0;
 }

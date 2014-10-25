@@ -3,7 +3,6 @@
  * Test script for interfacing with MTL4 and it's linear solvers.
  */
 
-// HW3: Need to install/include Boost and MTL in Makefile
 #include <boost/numeric/mtl/mtl.hpp>
 #include <boost/numeric/itl/itl.hpp>
 
@@ -71,12 +70,6 @@ public:
     };
   }
 
-/*  
-  template <typename Vector>
-  Vector operator*(const Vector& x) const {
-    return x;
-  }
-*/
   inline std::size_t size(const IdentityMatrix& A) {
     return A.num_rows()*A.num_cols();
   }
@@ -94,15 +87,12 @@ int main()
 
   std::size_t N = 1000;
   IdentityMatrix I = IdentityMatrix(N,N);
-  itl::pc::identity<IdentityMatrix> pre_con(I);
   mtl::dense_vector<double> x(N, 1.0), b(N);
   b = I * x; x = 0;
 
   itl::noisy_iteration<double> iter(b, 500, 1.e-6);
 
-  itl::cg(I, x, b, pre_con, iter);
-
-  return 0;
+  itl::cg(I, x, b, iter);
 
   return 0;
 }

@@ -81,6 +81,8 @@ struct NodeColor {
   NodeColor(mtl::dense_vector<double> u) : u_(u) {
     max = mtl::max(u_);
     min = mtl::min(u_);
+    if (min == max)
+      max = min + 1;
   };
   template <typename NODE>
   Color operator()(const NODE& node) {
