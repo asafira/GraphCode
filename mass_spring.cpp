@@ -445,8 +445,8 @@ int main(int argc, char** argv) {
     symp_euler_step(graph, t, dt, 
                     make_combined_force<GravityForce, MassSpringForce, DampingForce>
                     (GravityForce(), MassSpringForce(), DampingForce()),
-                    combined_cons<StickyPlaneCons, NoCons>
-                    (StickyPlaneCons(Point(0,0,1), -0.75), NoCons()));
+                    combined_cons<SphereCons, NoCons>
+                    (SphereCons(Point(0.5,0.5,-0.5), 0.15), NoCons()));
 
     // Clear the viewer's nodes and edges 
     viewer.clear();
