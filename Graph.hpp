@@ -307,7 +307,8 @@ class Graph {
     const Point& position() const {
   
       return graph_->nodes_[index_].point;
-    }
+    } 
+
 
     /** @brief return a modifiable reference to the 
     * position of the node.
@@ -385,7 +386,7 @@ class Graph {
     
     // Allow Graph to access Node's private member data and functions.
     friend class Graph;
-
+    friend class LoggingPoint;
     // Class variables for Node
     Graph* graph_;
     size_type index_;

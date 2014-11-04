@@ -77,8 +77,8 @@ double symp_euler_step(G& g, double t, double dt, F force, C constraint) {
   for (auto it = g.node_begin(); it != g.node_end(); ++it) {
     auto n = *it;
     // v^{n+1} = v^{n} + F(x^{n+1},t) * dt / m
-//    if (n.position() != Point(0,0,0) && n.position() != Point(1,0,0)) 
-    n.value().velocity += force(n, t) * (dt / n.value().mass);
+    if (n.position() != Point(0,0,0) && n.position() != Point(1,0,0)) 
+      n.value().velocity += force(n, t) * (dt / n.value().mass);
 
   }
 
@@ -445,8 +445,8 @@ int main(int argc, char** argv) {
     symp_euler_step(graph, t, dt, 
                     make_combined_force<GravityForce, MassSpringForce, DampingForce>
                     (GravityForce(), MassSpringForce(), DampingForce()),
-                    combined_cons<SphereCons, NoCons>
-                    (SphereCons(Point(0.5,0.5,-0.5), 0.15), NoCons()));
+                    combined_cons<CuttingSphereCons, NoCons>
+                    (CuttingSphereCons(Point(0.5,0.5,-0.5), 0.15), NoCons()));
 
     // Clear the viewer's nodes and edges 
     viewer.clear();
